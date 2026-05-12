@@ -1,26 +1,191 @@
 @import "tailwindcss";
 
+/* Design tokens inspired by premium auth surfaces (Stripe/Clerk/Linear vibes). */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: oklch(0.985 0.01 280);
+  --foreground: oklch(0.165 0.02 280);
+  --card: oklch(1 0.01 280);
+  --card-foreground: oklch(0.165 0.02 280);
+  --primary: oklch(0.58 0.22 286);
+  --primary-foreground: oklch(0.995 0.01 280);
+  --secondary: oklch(0.96 0.02 280);
+  --secondary-foreground: oklch(0.225 0.02 280);
+  --muted: oklch(0.96 0.01 280);
+  --muted-foreground: oklch(0.48 0.03 265);
+  --ring: oklch(0.62 0.22 286);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.145 0.03 280);
+  --foreground: oklch(0.97 0.01 280);
+  --card: oklch(0.18 0.04 280 / 55%);
+  --card-foreground: oklch(0.97 0.01 280);
+  --primary: oklch(0.68 0.19 286);
+  --primary-foreground: oklch(0.13 0.03 280);
+  --secondary: oklch(0.24 0.04 280);
+  --secondary-foreground: oklch(0.965 0.01 280);
+  --muted: oklch(0.24 0.04 280);
+  --muted-foreground: oklch(0.72 0.03 275);
+  --ring: oklch(0.74 0.18 286);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-ring: var(--ring);
+
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.35rem;
+
+  --shadow-card: 0 25px 60px rgba(15, 12, 40, 0.45);
+
+  --animate-slow-spin: spin 18s linear infinite;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes slow-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
 body {
-  background: var(--background);
+  min-height: 100dvh;
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+/* react-phone-number-input — country pill + light-gray native select (registration) */
+.registration-phone-root {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  --PhoneInput-color--focus: oklch(0.74 0.18 286);
+  --registration-country-bg: #e8eaf0;
+  --registration-country-border: rgb(0 0 0 / 0.14);
+}
+
+.registration-phone-root .PhoneInput {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.registration-phone-root .PhoneInputCountry {
+  position: relative;
+  align-self: stretch;
+  flex: 0 0 auto;
+  min-height: 2.75rem;
+  margin-right: 0;
+  padding: 0 0.58rem;
+  align-items: center;
+  justify-content: center;
+  column-gap: 0.42rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--registration-country-border);
+  background: var(--registration-country-bg);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.65);
+}
+
+/* Decorative flag/arrow sit after the opaque <select>; keep clicks on the country picker. */
+.registration-phone-root .PhoneInputCountrySelect {
+  z-index: 2;
+  /* Native list pickers read this in many browsers; matches the light-gray pill. */
+  background-color: var(--registration-country-bg);
+  color: oklch(0.22 0.02 280);
+  color-scheme: light;
+}
+
+.registration-phone-root .PhoneInputCountryIcon,
+.registration-phone-root .PhoneInputCountryIconUnicode,
+.registration-phone-root .PhoneInputCountryIconImg {
+  pointer-events: none;
+}
+
+.registration-phone-root .PhoneInputCountryIcon--border {
+  box-shadow:
+    0 0 0 var(--PhoneInputCountryFlag-borderWidth)
+      rgb(0 0 0 / 0.22),
+    inset 0 0 0 var(--PhoneInputCountryFlag-borderWidth)
+      rgb(0 0 0 / 0.12);
+}
+
+.registration-phone-root .PhoneInputCountrySelect:focus
+  + .PhoneInputCountryIcon--border {
+  box-shadow:
+    0 0 0 var(--PhoneInputCountryFlag-borderWidth)
+      var(--PhoneInput-color--focus),
+    inset 0 0 0 var(--PhoneInputCountryFlag-borderWidth)
+      var(--PhoneInput-color--focus);
+}
+
+.registration-phone-root .PhoneInputCountrySelectArrow {
+  pointer-events: none;
+  border-color: rgb(55 65 81 / 0.45);
+  opacity: 0.72;
+}
+
+/* Options list styling (Firefox / some Chromium builds; Safari often ignores option bg). */
+.registration-phone-root .PhoneInputCountrySelect option {
+  background-color: var(--registration-country-bg);
+  color: oklch(0.22 0.02 280);
+}
+
+.registration-phone-root .PhoneInputInput {
+  flex: 1 1 0%;
+  min-width: 0;
+  width: auto;
+  min-height: 2.75rem;
+  padding-inline: 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  background: rgb(255 255 255 / 0.06);
+  color: inherit;
+  font-size: 0.875rem;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+@media (min-width: 768px) {
+  .registration-phone-root .PhoneInputCountry,
+  .registration-phone-root .PhoneInputInput {
+    min-height: 3rem;
+  }
+
+  .registration-phone-root .PhoneInputInput {
+    font-size: 0.9375rem;
+  }
+}
+
+.registration-phone-root .PhoneInputInput::placeholder {
+  color: rgb(255 255 255 / 0.42);
+}
+
+.registration-phone-root .PhoneInputInput:focus-visible {
+  outline: none;
+  border-color: rgb(139 92 246 / 0.55);
+  box-shadow: 0 0 0 2px rgb(139 92 246 / 0.35);
+}
+
+.registration-phone-root .PhoneInput--disabled .PhoneInputInput,
+.registration-phone-root .PhoneInput--disabled .PhoneInputCountry {
+  opacity: 0.5;
 }

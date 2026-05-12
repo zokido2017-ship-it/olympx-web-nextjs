@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow create, read, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    /**
+     * Pre-auth registration payloads (writes from `saveRegistrationRecord` in the browser).
+     * Locks down shape so only intentional fields are writable; duplicate email rejected in app logic.
+     */
+    match /registrations/{registrationId} {
+      allow create: if
+        registerPayloadValid(request.resource.data);
+      allow read, update, delete: if false;
+    }
+  }
+}
+
+function registerPayloadValid(data) {
+  return (
+    request.auth == null &&
+    data.keys().hasOnly([
+      'fullName',
+      'email',
+      'phoneNumber',
+      'countryCode',
+      'gender',
+      'authProvider',
+      'createdAt',
+    ]) &&
+    data.fullName is string &&
+    data.fullName.size() >= 2 &&
+    data.fullName.size() <= 80 &&
+    data.email is string &&
+    data.email.size() >= 5 &&
+    data.email.size() <= 320 &&
+    data.phoneNumber is string &&
+    data.phoneNumber.matches('^\\+[1-9][0-9]{6,14}$') &&
+    data.countryCode is string &&
+    data.countryCode.matches('^\\+[1-9][0-9]{1,4}$') &&
+    data.gender is string &&
+    data.gender in ['male', 'female', 'other'] &&
+    data.authProvider == 'registration' &&
+    data.createdAt == request.time
+  );
+}
