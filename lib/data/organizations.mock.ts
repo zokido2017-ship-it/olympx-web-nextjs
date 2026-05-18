@@ -1,0 +1,48 @@
+import type { Organization } from "@/types/organization";
+
+export const initialOrganizations: Organization[] = [
+  {
+    id: "org-1",
+    name: "Apex Athletics Collective",
+    slug: "apex-athletics",
+    kind: "club",
+    description: "Regional multi-sport club and talent pipeline.",
+    status: "active",
+    memberCount: 128,
+    createdAt: "2024-06-12",
+    city: "Denver, CO",
+  },
+  {
+    id: "org-2",
+    name: "North Coast League",
+    slug: "north-coast-league",
+    kind: "league",
+    description: "Competitive summer league — soccer & basketball.",
+    status: "active",
+    memberCount: 842,
+    createdAt: "2023-11-02",
+    city: "Portland, OR",
+  },
+  {
+    id: "org-3",
+    name: "Summit Federation",
+    slug: "summit-fed",
+    kind: "federation",
+    description: "Governing body for collegiate club championships.",
+    status: "archived",
+    memberCount: 410,
+    createdAt: "2022-01-20",
+    city: "Salt Lake City, UT",
+  },
+  {
+    id: "org-4",
+    name: "Kinetic Labs",
+    slug: "kinetic-labs",
+    kind: "brand",
+    description: "Performance analytics & wearable partnerships.",
+    status: "active",
+    memberCount: 36,
+    createdAt: "2025-02-01",
+    city: "Remote",
+  },
+];

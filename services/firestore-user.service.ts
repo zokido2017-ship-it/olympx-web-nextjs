@@ -130,9 +130,14 @@ export function mapRegistrationSaveError(error: unknown): string {
       ? (error as { code: string }).code
       : "";
   if (code === "permission-denied") {
-    return "Could not save your registration — check Firestore security rules.";
+    return "Could not save your registration.";
   }
-  return error instanceof Error
-    ? error.message
-    : "Something went wrong. Please try again.";
+  if (error instanceof Error) {
+    const m = error.message;
+    if (/not configured|NEXT_PUBLIC_/i.test(m)) {
+      return "Saving isn’t available in this environment.";
+    }
+    return m;
+  }
+  return "Something went wrong. Please try again.";
 }

@@ -2,31 +2,22 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import * as React from "react";
 
 import { Button } from "@/components/ui/button";
-
-/** Mirrors SSR-safe hydration detection without relying on post-mount effects. */
-function useIsClientReady() {
-  return React.useSyncExternalStore(
-    () => () => undefined,
-    () => true,
-    () => false,
-  );
-}
+import { useIsClientReady } from "@/hooks/use-is-client-ready";
 
 export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const mounted = useIsClientReady();
 
-  const isDark = mounted ? resolvedTheme === "dark" : true;
+  const isDark = mounted ? resolvedTheme === "dark" : false;
 
   return (
     <Button
       type="button"
       variant="outline"
       size="icon"
-      className="rounded-2xl border-white/15 bg-white/5"
+      className="rounded-md ring-ghost bg-transparent hover:bg-muted"
       aria-label="Toggle theme"
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >

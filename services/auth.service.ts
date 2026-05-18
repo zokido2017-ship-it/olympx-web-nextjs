@@ -13,9 +13,14 @@ import {
 } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import {
-  PHONE_E164_KEY,
+  FIREBASE_PHONE_E164_KEY,
   PHONE_VERIFICATION_ID_KEY,
 } from "@/types/auth";
+import {
+  safeLocalStorageGet,
+  safeLocalStorageRemove,
+  safeLocalStorageSet,
+} from "@/lib/safe-web-storage";
 
 export function mapFirebaseAuthError(code: string): string {
   const table: Record<string, string> = {
@@ -38,10 +43,21 @@ export function mapFirebaseAuthError(code: string): string {
     "auth/code-expired": "This code has expired. Request a new one.",
     "auth/credential-already-in-use":
       "This phone number is already linked to another account.",
-    "permission-denied":
-      "Could not save your profile — check Firestore security rules.",
+    "permission-denied": "Could not save your profile.",
   };
   return table[code] ?? "Something went wrong. Please try again.";
+}
+
+/** User-facing copy without backend product names when config/runtime fails. */
+export function friendlyAuthError(error: unknown, firebaseCode: string): string {
+  if (firebaseCode) return mapFirebaseAuthError(firebaseCode);
+  if (error instanceof Error) {
+    if (/not configured|NEXT_PUBLIC_|Firebase/i.test(error.message)) {
+      return "Signing in isn’t available in this environment.";
+    }
+    return error.message;
+  }
+  return "Something went wrong. Please try again.";
 }
 
 function ensureRecaptcha(): RecaptchaVerifier {
@@ -55,7 +71,7 @@ function ensureRecaptcha(): RecaptchaVerifier {
   });
 }
 
-/** Sends Firebase SMS OTP; stores verification id + E.164 in sessionStorage for `/verify-otp`. */
+/** Sends Firebase SMS OTP; stores verification id + E.164 in localStorage. */
 export async function startPhoneVerification(phoneE164: string): Promise<void> {
   const auth = getFirebaseAuth();
   const verifier = ensureRecaptcha();
@@ -75,8 +91,8 @@ export async function startPhoneVerification(phoneE164: string): Promise<void> {
   }
 
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(PHONE_VERIFICATION_ID_KEY, verificationId);
-  sessionStorage.setItem(PHONE_E164_KEY, phoneE164);
+  safeLocalStorageSet(PHONE_VERIFICATION_ID_KEY, verificationId);
+  safeLocalStorageSet(FIREBASE_PHONE_E164_KEY, phoneE164);
 }
 
 export async function verifyPhoneOtp(code: string): Promise<void> {
@@ -85,7 +101,7 @@ export async function verifyPhoneOtp(code: string): Promise<void> {
     throw new Error("OTP verification is browser-only.");
   }
 
-  const verificationId = sessionStorage.getItem(PHONE_VERIFICATION_ID_KEY);
+  const verificationId = safeLocalStorageGet(PHONE_VERIFICATION_ID_KEY);
   if (!verificationId) {
     throw new Error("Verification session expired. Request a new code.");
   }
@@ -93,14 +109,13 @@ export async function verifyPhoneOtp(code: string): Promise<void> {
   const credential = PhoneAuthProvider.credential(verificationId, code);
   await signInWithCredential(auth, credential);
 
-  sessionStorage.removeItem(PHONE_VERIFICATION_ID_KEY);
-  sessionStorage.removeItem(PHONE_E164_KEY);
+  safeLocalStorageRemove(PHONE_VERIFICATION_ID_KEY);
+  safeLocalStorageRemove(FIREBASE_PHONE_E164_KEY);
 }
 
 export function clearPhoneVerificationSession(): void {
-  if (typeof window === "undefined") return;
-  sessionStorage.removeItem(PHONE_VERIFICATION_ID_KEY);
-  sessionStorage.removeItem(PHONE_E164_KEY);
+  safeLocalStorageRemove(PHONE_VERIFICATION_ID_KEY);
+  safeLocalStorageRemove(FIREBASE_PHONE_E164_KEY);
 }
 
 export async function loginWithGoogle(): Promise<void> {
@@ -124,9 +139,6 @@ export function subscribeToAuth(
     const auth = getFirebaseAuth();
     return auth.onAuthStateChanged(onChange);
   } catch {
-    console.warn(
-      "Firebase initialization failed — check NEXT_PUBLIC_FIREBASE_* env vars.",
-    );
     onChange(null);
     return () => {};
   }

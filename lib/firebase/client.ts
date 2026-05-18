@@ -4,10 +4,7 @@ import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
-import {
-  getMissingFirebasePublicEnvVars,
-  isFirebaseConfigured,
-} from "@/lib/firebase/env";
+import { isFirebaseConfigured } from "@/lib/firebase/env";
 
 /**
  * Reads public Firebase web config from environment variables.
@@ -15,10 +12,7 @@ import {
  */
 function getFirebaseConfig() {
   if (!isFirebaseConfigured()) {
-    const missing = getMissingFirebasePublicEnvVars();
-    throw new Error(
-      `Firebase is not configured. Set real values for: ${missing.join(", ")}. Copy .env.example to .env.local, fill from Firebase Console (Web app), then restart dev server.`,
-    );
+    throw new Error("Service is not configured.");
   }
 
   return {

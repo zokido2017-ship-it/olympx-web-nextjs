@@ -7,20 +7,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-[opacity,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground shadow-ambient hover:opacity-95",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/90 border border-white/10",
+          "bg-surface-container-high text-secondary-foreground ring-ghost hover:bg-surface-container-high/90",
         outline:
-          "border border-white/15 bg-transparent hover:bg-white/5 text-foreground",
-        ghost: "hover:bg-white/10",
+          "bg-transparent text-foreground ring-ghost hover:bg-surface-container-low",
+        ghost: "hover:bg-surface-container-low",
         link: "text-primary underline-offset-4 hover:underline",
         gradient:
-          "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-lg shadow-violet-500/25 hover:opacity-95",
+          "bg-kinetic-primary text-primary-foreground shadow-ambient hover:opacity-95",
       },
       size: {
         default: "h-11 px-5 py-2",

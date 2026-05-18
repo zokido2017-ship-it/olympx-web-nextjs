@@ -81,7 +81,7 @@ export function OtpInput({
             onChange(digits);
             focusAt(Math.min(digits.length, length - 1));
           }}
-          className="h-12 w-11 rounded-2xl border border-white/15 bg-white/5 text-center text-lg font-semibold tracking-widest shadow-inner shadow-black/20 outline-none transition-colors focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/35 sm:h-14 sm:w-12 sm:text-xl"
+          className="h-12 w-11 rounded-md bg-muted text-center text-lg font-semibold tracking-widest text-foreground ring-ghost outline-none transition-[background-color,box-shadow] focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-primary/35 sm:h-14 sm:w-12 sm:text-xl"
         />
       ))}
     </div>

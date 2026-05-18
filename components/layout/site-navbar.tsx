@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const BRAND = "Aurora";
 
 const links = [
+  { href: "/dashboard" as const, label: "Dashboard" },
   { href: "/login" as const, label: "Login" },
   { href: "/register" as const, label: "Register" },
 ];
@@ -32,23 +33,23 @@ export function SiteNavbar() {
     return cn(
       "block rounded-lg px-3 py-2 text-sm font-medium tracking-tight transition-colors duration-200 md:px-4 md:text-[15px]",
       active
-        ? "bg-foreground/[0.08] text-foreground ring-1 ring-foreground/[0.1]"
-        : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground",
+        ? "bg-muted text-foreground ring-ghost"
+        : "text-muted-foreground hover:bg-muted hover:text-foreground",
     );
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-foreground/[0.08] bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+    <header className="sticky top-0 z-50 w-full bg-surface-container-lowest/80 shadow-ambient backdrop-blur-[20px] supports-[backdrop-filter]:bg-surface-container-lowest/70">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:h-[3.5rem] sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex items-center gap-2.5 rounded-lg outline-none transition-opacity duration-200 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-foreground/20"
+          className="flex items-center gap-2.5 rounded-lg outline-none transition-opacity duration-200 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/35"
         >
           <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 sm:h-9 sm:w-9"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-kinetic-primary shadow-ambient sm:h-9 sm:w-9"
             aria-hidden
           />
-          <span className="text-[15px] font-semibold tracking-tight">{BRAND}</span>
+          <span className="text-[15px] font-semibold tracking-[-0.02em] text-on-surface">{BRAND}</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
@@ -66,7 +67,7 @@ export function SiteNavbar() {
 
         <button
           type="button"
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-foreground/10 text-foreground transition-colors duration-200 hover:bg-foreground/[0.06] md:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-md text-foreground ring-ghost transition-colors duration-200 hover:bg-muted md:hidden"
           onClick={() => setMobileOpen((o) => !o)}
           aria-expanded={mobileOpen}
           aria-controls="mobile-nav"
@@ -79,7 +80,7 @@ export function SiteNavbar() {
       {mobileOpen ? (
         <nav
           id="mobile-nav"
-          className="border-t border-foreground/[0.08] bg-background px-4 py-3 md:hidden"
+          className="border-t border-transparent bg-surface-container-low px-4 py-3 shadow-[inset_0_1px_0_0_var(--ghost-ring)] md:hidden"
           aria-label="Mobile"
         >
           <div className="mx-auto flex max-w-6xl flex-col gap-1 sm:px-2">
