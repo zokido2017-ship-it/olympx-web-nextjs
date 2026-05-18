@@ -1,8 +1,8 @@
 "use strict";
 
 /**
- * Runs `next dev` with Node 20+. If PATH points at an older Node, tries the
- * standard Windows Node.js install path before failing.
+ * Runs `next dev` with Node 20+. If PATH points at an older Node, tries common
+ * Windows install paths and nvm-windows (`NVM_HOME`) before failing.
  */
 const { execFileSync, spawnSync } = require("child_process");
 const fs = require("fs");
@@ -55,6 +55,45 @@ function runNextDev(nodeExe) {
   process.exit(typeof r.status === "number" ? r.status : 1);
 }
 
+/** Prefer newest Node ≥ 20 under nvm-windows (`NVM_HOME\v*\node.exe`). */
+function findNvmNode20Plus() {
+  const nvmHome = process.env.NVM_HOME;
+  if (!nvmHome || !fs.existsSync(nvmHome)) return null;
+  let bestExe = null;
+  let bestMajor = 0;
+  let entries;
+  try {
+    entries = fs.readdirSync(nvmHome, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const ent of entries) {
+    if (!ent.isDirectory()) continue;
+    if (!/^v\d+/.test(ent.name)) continue;
+    const exe = path.join(nvmHome, ent.name, "node.exe");
+    if (!fs.existsSync(exe)) continue;
+    const ver = nodeVersionOf(exe);
+    const maj = majorOf(ver || "");
+    if (maj >= 20 && maj >= bestMajor) {
+      bestMajor = maj;
+      bestExe = exe;
+    }
+  }
+  return bestExe;
+}
+
+function collectWindowsNodeCandidates() {
+  const list = [
+    path.join(process.env.ProgramFiles || "C:\\Program Files", "nodejs", "node.exe"),
+    "C:\\Program Files\\nodejs\\node.exe",
+    path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "nodejs", "node.exe"),
+    "C:\\Program Files (x86)\\nodejs\\node.exe",
+  ];
+  const nvm = findNvmNode20Plus();
+  if (nvm) list.push(nvm);
+  return list;
+}
+
 const currentMajor = majorOf(process.version);
 
 if (currentMajor >= 20) {
@@ -62,14 +101,13 @@ if (currentMajor >= 20) {
 }
 
 if (process.platform === "win32") {
-  const candidates = [
-    path.join(process.env.ProgramFiles || "C:\\Program Files", "nodejs", "node.exe"),
-    "C:\\Program Files\\nodejs\\node.exe",
-  ];
-  for (const exe of candidates) {
+  for (const exe of collectWindowsNodeCandidates()) {
     if (!exe || !fs.existsSync(exe)) continue;
     const v = nodeVersionOf(exe);
     if (v && majorOf(v) >= 20) {
+      console.error(
+        `[dev] Using Node ${v} from:\n      ${exe}\n      (PATH had ${process.version})\n`,
+      );
       runNextDev(exe);
     }
   }
@@ -80,7 +118,11 @@ fail(
     "",
     'This app requires Node.js 20 or newer (see package.json "engines").',
     `Invoked with: ${process.version} (${process.execPath})`,
-    "Install Node 20+ and put it first in PATH (Windows: check `where node`).",
+    "",
+    "Fix options:",
+    "  • Install Node 20 LTS from https://nodejs.org and restart the terminal.",
+    "  • Or with nvm-windows: nvm install 20 && nvm use 20",
+    "  • Then run `where node` and ensure Node 20 appears first.",
     "",
   ].join("\n"),
 );

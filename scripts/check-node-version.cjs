@@ -9,7 +9,11 @@ if (!Number.isFinite(major) || major < 20) {
     "\nThis app requires Node.js 20 or newer (see package.json \"engines\").",
     "\nYour version:",
     process.version,
-    '\nInstall Node 20+ and ensure it appears first in PATH for this terminal (Windows: check `where node`).\n',
+    "\n\nFix:",
+    "\n  • Install Node 20+ from https://nodejs.org (LTS), or",
+    "\n  • nvm-windows: nvm install 20 && nvm use 20",
+    "\n  • Windows: run `where node` — the first path should be Node 20+.",
+    "\n",
   );
   process.exit(1);
 }
