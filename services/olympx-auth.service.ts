@@ -1,6 +1,10 @@
 "use client";
 
 import { authDebug, authDebugMaskToken } from "@/lib/olympx/auth-debug";
+import {
+  buildRegisterFormData,
+  type RegisterMultipartInput,
+} from "@/lib/olympx/build-register-form-data";
 import type { OlympxPhoneParts } from "@/lib/phone-e164-parts";
 import type { OlympxAuthResponse } from "@/lib/olympx/session";
 import { resolveOlympxTokenFromApiPayload } from "@/lib/olympx/session";
@@ -12,9 +16,8 @@ import { resolveOlympxTokenFromApiPayload } from "@/lib/olympx/session";
  * Authentication (JSON):
  * - POST `api/v1/auth/send-otp` — body: `{ phone_code, mobile_number }`
  * - POST `api/v1/auth/validate-otp` — body: `{ phone_code, mobile_number, otp }`
- * - POST `api/v1/auth/register` — body includes `phone_code`, `mobile_number`, `first_name`,
- *   `last_name`, `display_name` (defaults to first + last when omitted), `dob`, `gender`,
- *   `nationality`, `contact_email`; optional `photo_path`, `profile`, `otp` default when omitted.
+ * - POST `api/v1/auth/register` — multipart/form-data: `first_name`, `last_name`, `mobile`,
+ *   `email`, `date_of_birth`, `gender`, `otp`, optional `profile_image`.
  */
 const PATH_SEND_OTP =
   process.env.NEXT_PUBLIC_OLYMPX_SEND_OTP_PATH ?? "api/v1/auth/send-otp";
@@ -145,6 +148,53 @@ function networkErrorMessage(): string {
   ].join(" ");
 }
 
+async function postMultipart(
+  path: string,
+  formData: FormData,
+): Promise<Record<string, unknown>> {
+  const normalized = path.replace(/^\/+/, "");
+  let res: Response;
+  try {
+    res = await fetch(`/api/olympx/${normalized}`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      body: formData,
+      cache: "no-store",
+    });
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    const isFetchFailed =
+      raw === "Failed to fetch" ||
+      /failed to fetch|networkerror|load failed|network request failed/i.test(
+        raw,
+      );
+    throw new OlympxHttpError(
+      isFetchFailed ? networkErrorMessage() : raw,
+      0,
+      e,
+    );
+  }
+
+  const text = await res.text();
+  let data: unknown = {};
+  if (text) {
+    try {
+      data = JSON.parse(text) as unknown;
+    } catch {
+      data = { message: text };
+    }
+  }
+
+  if (!res.ok) {
+    const msg = errorMessageFromBody(data, res.status, text);
+    throw new OlympxHttpError(msg, res.status, data);
+  }
+
+  return typeof data === "object" && data !== null
+    ? (data as Record<string, unknown>)
+    : {};
+}
+
 async function postJson(
   path: string,
   body: unknown,
@@ -233,52 +283,28 @@ export async function olympxLoginWithOtp(
   return { ...raw, token };
 }
 
-/** `POST /api/v1/auth/register` body; `photo_path`, `profile`, `otp` default when omitted. */
-export type OlympxRegisterPayload = {
-  phone_code: string;
-  mobile_number: string;
-  first_name: string;
-  last_name: string;
-  /** Omit to send `first_name` + `last_name` joined; pass explicit string to override. */
-  display_name?: string;
-  dob: string;
-  gender: string;
-  nationality: string;
-  contact_email: string;
-  photo_path?: string;
-  profile?: Record<string, unknown>;
-  otp?: string;
-};
+export type { RegisterMultipartInput as OlympxRegisterInput };
 
+/** `POST /api/v1/auth/register` — always multipart/form-data. */
 export async function olympxRegister(
-  payload: OlympxRegisterPayload,
+  input: RegisterMultipartInput,
 ): Promise<OlympxAuthResponse> {
-  const dobRaw = payload.dob.trim();
-  const dob =
-    dobRaw.length === 10 ? `${dobRaw}T00:00:00.000000Z` : dobRaw;
+  const formData = buildRegisterFormData(input);
 
-  const displayName =
-    payload.display_name?.trim() ??
-    [payload.first_name.trim(), payload.last_name.trim()].filter(Boolean).join(" ");
+  authDebug("otp-api", "register multipart/form-data", {
+    fields: [
+      "first_name",
+      "last_name",
+      "mobile",
+      "email",
+      "date_of_birth",
+      "gender",
+      "otp",
+      ...(input.profileImage ? ["profile_image"] : []),
+    ],
+  });
 
-  const body: Record<string, unknown> = {
-    phone_code: String(payload.phone_code).trim(),
-    mobile_number: String(payload.mobile_number).trim(),
-    first_name: payload.first_name.trim(),
-    last_name: payload.last_name.trim(),
-    display_name: displayName,
-    dob,
-    gender: payload.gender.trim(),
-    nationality: payload.nationality.trim().toUpperCase(),
-    photo_path: (payload.photo_path ?? "").trim(),
-    contact_email: payload.contact_email.trim(),
-    profile: payload.profile ?? {},
-    otp: (payload.otp ?? "").trim(),
-  };
-
-  authDebug("otp-api", "register request keys", { keys: Object.keys(body) });
-
-  const raw = await postJson(PATH_REGISTER, body);
+  const raw = await postMultipart(PATH_REGISTER, formData);
   const token = unwrapToken(raw);
   return token ? { ...raw, token } : { ...raw };
 }

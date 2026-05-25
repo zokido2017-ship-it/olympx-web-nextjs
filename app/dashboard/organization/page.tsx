@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { OrganizationManagementPanel } from "@/components/organization/organization-management";
+import { getOrganizationBasePath, ORG_PROFILE_SLUG_DEFAULT } from "@/lib/management-nav";
 
 export const metadata: Metadata = {
   title: "Organizations | Olympx",
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardOrganizationPage() {
-  return <OrganizationManagementPanel />;
+  redirect(getOrganizationBasePath(ORG_PROFILE_SLUG_DEFAULT));
 }

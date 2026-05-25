@@ -14,8 +14,14 @@ import { isValidPhoneNumber } from "libphonenumber-js/min";
 import { toast } from "sonner";
 
 import { GlassPhoneNumberInput } from "@/components/auth/glass-phone-number-input";
+import { ProfileAvatarUpload } from "@/components/auth/profile-avatar-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  clearPendingRegistrationAvatar,
+  readPendingRegistrationAvatar,
+  storePendingRegistrationAvatar,
+} from "@/lib/olympx/pending-registration-avatar";
 import {
   storeRegisterDraft,
   type OlympxRegisterDraft,
@@ -80,15 +86,24 @@ function genderLabel(value: Gender) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function initialsFromNames(first: string, last: string) {
+  const f = first.trim()[0] ?? "";
+  const l = last.trim()[0] ?? "";
+  return (f + l).toUpperCase() || "?";
+}
+
 export function AuthRegisterPage() {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
+  const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null);
+  const [avatarError, setAvatarError] = React.useState<string | null>(null);
 
   const {
     register,
     control,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<RegistrationInput>({
     resolver: zodResolver(registrationSchema) as Resolver<RegistrationInput>,
@@ -116,6 +131,31 @@ export function AuthRegisterPage() {
       /* ignore */
     }
   }, [setValue]);
+
+  React.useEffect(() => {
+    const pending = readPendingRegistrationAvatar();
+    if (pending?.dataUrl) setAvatarPreview(pending.dataUrl);
+  }, []);
+
+  const firstName = watch("firstName") ?? "";
+  const lastName = watch("lastName") ?? "";
+
+  async function onAvatarSelect(file: File) {
+    setAvatarError(null);
+    const result = await storePendingRegistrationAvatar(file);
+    if (!result.ok) {
+      setAvatarError(result.error);
+      return;
+    }
+    const stored = readPendingRegistrationAvatar();
+    setAvatarPreview(stored?.dataUrl ?? null);
+  }
+
+  function onAvatarClear() {
+    clearPendingRegistrationAvatar();
+    setAvatarPreview(null);
+    setAvatarError(null);
+  }
 
   async function onSendOtp(values: RegistrationInput) {
     setBusy(true);
@@ -175,6 +215,16 @@ export function AuthRegisterPage() {
           onSubmit={handleSubmit(onSendOtp)}
           noValidate
         >
+          <ProfileAvatarUpload
+            previewUrl={avatarPreview}
+            initials={initialsFromNames(firstName, lastName)}
+            onFileSelect={(file) => void onAvatarSelect(file)}
+            onClear={onAvatarClear}
+            error={avatarError}
+            disabled={busy}
+            className="pb-2"
+          />
+
           <div className="grid gap-6 sm:grid-cols-2 sm:gap-5">
             <div className="space-y-0 sm:col-span-1">
               <FieldLabel htmlFor="firstName">

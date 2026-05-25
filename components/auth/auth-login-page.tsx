@@ -25,6 +25,8 @@ import { GlassPhoneNumberInput } from "@/components/auth/glass-phone-number-inpu
 import { OtpInput } from "@/components/auth/otp-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { syncDashboardUserAfterAuth } from "@/lib/dashboard-user-storage";
+import { DEFAULT_POST_LOGIN_PATH } from "@/lib/olympx/default-post-login";
 import { useOlympxAuth } from "@/hooks/use-olympx-auth";
 import { authDebug, authDebugMaskToken } from "@/lib/olympx/auth-debug";
 import {
@@ -120,10 +122,10 @@ export function AuthLoginPage() {
     try {
       return (
         readNextSafe(new URLSearchParams(window.location.search)) ??
-        "/dashboard"
+        DEFAULT_POST_LOGIN_PATH
       );
     } catch {
-      return "/dashboard";
+      return DEFAULT_POST_LOGIN_PATH;
     }
   }, []);
 
@@ -160,7 +162,9 @@ export function AuthLoginPage() {
       }
       if (t) {
         await syncOlympxSessionToServer(t);
-        applyAuthResponse(readOlympxAuthJsonFromStorage() ?? { token: t });
+        const resumed = readOlympxAuthJsonFromStorage() ?? { token: t };
+        applyAuthResponse(resumed);
+        syncDashboardUserAfterAuth(resumed);
         authDebug("auth-login", "resume session", {
           token: authDebugMaskToken(t),
         });
@@ -283,6 +287,7 @@ export function AuthLoginPage() {
           return;
         }
         applyAuthResponse(auth);
+        syncDashboardUserAfterAuth(auth);
         clearPendingOlympxOtp();
         handoffRef.current = null;
         setDone(true);

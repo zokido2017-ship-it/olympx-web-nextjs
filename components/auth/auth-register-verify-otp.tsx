@@ -11,6 +11,15 @@ import { toast } from "sonner";
 import { OtpInput } from "@/components/auth/otp-input";
 import { Button } from "@/components/ui/button";
 import { authDebug } from "@/lib/olympx/auth-debug";
+import { DEFAULT_POST_LOGIN_PATH } from "@/lib/olympx/default-post-login";
+import {
+  persistDashboardUserFromRegistration,
+} from "@/lib/dashboard-user-storage";
+import {
+  clearPendingRegistrationAvatar,
+  fileFromPendingAvatar,
+  readPendingRegistrationAvatar,
+} from "@/lib/olympx/pending-registration-avatar";
 import {
   clearRegisterDraft,
   readRegisterDraft,
@@ -69,7 +78,9 @@ export function AuthRegisterVerifyOtpPage() {
       router.replace("/register");
       return;
     }
-    setDraft(d);
+    queueMicrotask(() => {
+      setDraft(d);
+    });
   }, [router]);
 
   const sendAgain = React.useCallback(async () => {
@@ -96,20 +107,20 @@ export function AuthRegisterVerifyOtpPage() {
     try {
       const parts = registrationFieldsFromE164(draft.phoneE164);
 
+      const pendingAvatar = readPendingRegistrationAvatar();
+      const profilePhoto = pendingAvatar
+        ? fileFromPendingAvatar(pendingAvatar)
+        : null;
+
       let sessionPayload: OlympxAuthResponse = await olympxRegister({
-        phone_code: parts.phone_code,
-        mobile_number: parts.mobile_number,
-        first_name: draft.firstName,
-        last_name: draft.lastName,
-        dob: draft.dob,
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        mobile: draft.phoneE164,
+        email: draft.contactEmail,
+        dateOfBirth: draft.dob,
         gender: draft.gender,
-        nationality:
-          draft.nationality?.trim().toUpperCase() &&
-          /^[A-Z]{2}$/.test(draft.nationality.trim().toUpperCase())
-            ? draft.nationality.trim().toUpperCase()
-            : "IN",
-        contact_email: draft.contactEmail,
         otp,
+        profileImage: profilePhoto ?? undefined,
       });
 
       let token = getOlympxTokenFromAuth(sessionPayload);
@@ -132,7 +143,12 @@ export function AuthRegisterVerifyOtpPage() {
         return;
       }
 
+      persistDashboardUserFromRegistration(
+        draft,
+        pendingAvatar?.dataUrl ?? null,
+      );
       clearRegisterDraft();
+      clearPendingRegistrationAvatar();
       persistOlympxAuthResponse(sessionPayload);
       const synced = await syncOlympxSessionToServer(token);
       applyAuthResponse(sessionPayload);
@@ -144,7 +160,7 @@ export function AuthRegisterVerifyOtpPage() {
       toast.success("Welcome to Olympx", {
         description: "Your account is ready.",
       });
-      window.location.assign("/dashboard");
+      window.location.assign(DEFAULT_POST_LOGIN_PATH);
     } catch (e) {
       if (isOlympxHttpError(e) && registerLooksLikeDuplicate(e)) {
         toast.error("Account may already exist", {
@@ -168,6 +184,7 @@ export function AuthRegisterVerifyOtpPage() {
 
   function onEditDetails() {
     clearRegisterDraft();
+    clearPendingRegistrationAvatar();
     router.replace("/register");
   }
 

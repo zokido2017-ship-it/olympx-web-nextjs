@@ -7,6 +7,7 @@ import * as React from "react";
 import { useOlympxAuth } from "@/hooks/use-olympx-auth";
 import { isOlympxAuthBypassed } from "@/lib/olympx/auth-bypass";
 import { authDebug } from "@/lib/olympx/auth-debug";
+import { DEFAULT_POST_LOGIN_PATH } from "@/lib/olympx/default-post-login";
 import { readOlympxAccessToken } from "@/lib/olympx/session";
 import { checkOlympxServerSession } from "@/lib/olympx/sync-server-session";
 
@@ -55,7 +56,7 @@ export function RequireOlympxAuth({
           const next =
             typeof window !== "undefined"
               ? `${window.location.pathname}${window.location.search}`
-              : "/dashboard";
+              : DEFAULT_POST_LOGIN_PATH;
           authDebug("guard", "redirect: no session after checks", {
             to: `/login?next=${encodeURIComponent(next)}`,
           });
