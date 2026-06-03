@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 import {
   Briefcase,
   CloudUpload,
@@ -21,7 +22,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useOlympxAuth } from "@/hooks/use-olympx-auth";
+import { getTeamBasePath } from "@/lib/management-nav";
 import { cn } from "@/lib/utils";
+import {
+  fetchOlympxSports,
+  olympxCreateTeam,
+  type OlympxSportOption,
+} from "@/services/olympx-teams.service";
 
 const accent = "text-[#1D61D1]";
 
@@ -80,23 +88,116 @@ const sectionLabel = cn(
   accent,
 );
 
+const inputClass =
+  "h-11 rounded-lg border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#1D61D1] focus-visible:ring-[#1D61D1]/20";
+
+function defaultOrganisationId(searchParams: URLSearchParams): string {
+  const fromQuery =
+    searchParams.get("organisation_id") ?? searchParams.get("organisationId");
+  if (fromQuery?.trim()) return fromQuery.trim();
+  const fromEnv = process.env.NEXT_PUBLIC_OLYMPX_DEFAULT_ORGANISATION_ID?.trim();
+  return fromEnv ?? "";
+}
+
 export function CreateTeamView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { token: authToken } = useOlympxAuth();
+
+  const [teamName, setTeamName] = React.useState("");
+  const [organisationId, setOrganisationId] = React.useState(() =>
+    defaultOrganisationId(searchParams),
+  );
+  const [sportId, setSportId] = React.useState("");
+  const [sports, setSports] = React.useState<OlympxSportOption[]>([]);
+  const [sportsLoading, setSportsLoading] = React.useState(true);
+  const [logoFile, setLogoFile] = React.useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
+  const [creating, setCreating] = React.useState(false);
+  const [showValidation, setShowValidation] = React.useState(false);
   const [players, setPlayers] = React.useState(MOCK_PLAYERS);
+
+  const logoInputRef = React.useRef<HTMLInputElement>(null);
+  const captain = players.find((p) => p.role === "CAPTAIN") ?? players[0];
+
+  React.useEffect(() => {
+    return () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview);
+    };
+  }, [logoPreview]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setSportsLoading(true);
+      try {
+        const list = await fetchOlympxSports(authToken);
+        if (!cancelled) setSports(list);
+      } catch {
+        if (!cancelled) setSports([]);
+      } finally {
+        if (!cancelled) setSportsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken]);
 
   const removePlayer = (id: string) => {
     setPlayers((p) => p.filter((x) => x.id !== id));
   };
 
+  const onLogoSelected = (file: File | null) => {
+    setLogoFile(file);
+    setLogoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+  };
+
+  const handleCreateTeam = async () => {
+    setShowValidation(true);
+    const nameOk = teamName.trim().length > 0;
+    const orgId = Number.parseInt(organisationId.trim(), 10);
+    const orgOk = Number.isFinite(orgId) && orgId > 0;
+
+    if (!nameOk || !orgOk) {
+      toast.error("Enter a team name and valid organisation ID.");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const created = await olympxCreateTeam(
+        {
+          organisationId: orgId,
+          name: teamName.trim(),
+          sportId: sportId ? Number.parseInt(sportId, 10) : null,
+          logoFile,
+          captainPlayerId: captain?.playerId ?? null,
+        },
+        { accessToken: authToken },
+      );
+
+      toast.success("Team created", {
+        description: `${teamName.trim()} is ready.`,
+      });
+      router.push(getTeamBasePath(created.slug));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not create team.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const orgInvalid = showValidation && !Number.isFinite(Number.parseInt(organisationId, 10));
+  const nameInvalid = showValidation && !teamName.trim();
+
   return (
     <div className="relative mx-auto max-w-[1200px] space-y-8">
       <header className="space-y-3">
-        <p
-          className={cn(
-            "text-xs font-bold uppercase tracking-[0.2em]",
-            accent,
-          )}
-        >
+        <p className={cn("text-xs font-bold uppercase tracking-[0.2em]", accent)}>
           Roster management
         </p>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">
@@ -116,32 +217,48 @@ export function CreateTeamView() {
                 Team identity
               </div>
               <div className="space-y-2">
-                <Label
-                  htmlFor="team-name"
-                  className="text-sm font-semibold text-slate-800"
-                >
+                <Label htmlFor="organisation-id" className="text-sm font-semibold text-slate-800">
+                  Organisation ID
+                </Label>
+                <Input
+                  id="organisation-id"
+                  inputMode="numeric"
+                  placeholder="e.g. 16"
+                  value={organisationId}
+                  onChange={(e) => setOrganisationId(e.target.value)}
+                  aria-invalid={orgInvalid}
+                  className={cn(inputClass, orgInvalid && "border-rose-400 ring-2 ring-rose-500/15")}
+                />
+                <p className="text-xs text-slate-500">
+                  Required by the API — the organisation this team belongs to.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="team-name" className="text-sm font-semibold text-slate-800">
                   Team Name
                 </Label>
                 <Input
                   id="team-name"
                   placeholder="e.g. Northern Wolves FC"
-                  className="h-11 rounded-lg border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#1D61D1] focus-visible:ring-[#1D61D1]/20"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  aria-invalid={nameInvalid}
+                  className={cn(inputClass, nameInvalid && "border-rose-400 ring-2 ring-rose-500/15")}
                 />
                 <p className="text-xs text-slate-500">
                   Visible on all public leaderboards and match schedules.
                 </p>
               </div>
               <div className="space-y-2">
-                <Label
-                  htmlFor="sport"
-                  className="text-sm font-semibold text-slate-800"
-                >
+                <Label htmlFor="sport" className="text-sm font-semibold text-slate-800">
                   Sport Discipline
                 </Label>
                 <div className="relative">
                   <select
                     id="sport"
-                    defaultValue=""
+                    value={sportId}
+                    onChange={(e) => setSportId(e.target.value)}
+                    disabled={sportsLoading}
                     className="h-11 w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-slate-50 px-3 pr-10 text-sm text-slate-900 shadow-sm focus-visible:border-[#1D61D1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D61D1]/20 [&>option]:text-slate-900"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
@@ -150,13 +267,21 @@ export function CreateTeamView() {
                       backgroundSize: "14px 14px",
                     }}
                   >
-                    <option value="" disabled>
-                      Select a sport…
+                    <option value="">
+                      {sportsLoading ? "Loading sports…" : "Select a sport…"}
                     </option>
-                    <option value="soccer">Soccer</option>
-                    <option value="basketball">Basketball</option>
-                    <option value="hockey">Hockey</option>
-                    <option value="multi">Multi-sport</option>
+                    {sports.map((sport) => (
+                      <option key={sport.id} value={String(sport.id)}>
+                        {sport.name}
+                      </option>
+                    ))}
+                    {!sportsLoading && sports.length === 0 ? (
+                      <>
+                        <option value="1">Soccer</option>
+                        <option value="2">Basketball</option>
+                        <option value="3">Hockey</option>
+                      </>
+                    ) : null}
                   </select>
                 </div>
               </div>
@@ -170,10 +295,7 @@ export function CreateTeamView() {
                 Roster construction
               </div>
               <div className="space-y-2">
-                <Label
-                  htmlFor="player-search"
-                  className="text-sm font-semibold text-slate-800"
-                >
+                <Label htmlFor="player-search" className="text-sm font-semibold text-slate-800">
                   Add Players
                 </Label>
                 <div className="relative">
@@ -181,7 +303,7 @@ export function CreateTeamView() {
                   <Input
                     id="player-search"
                     placeholder="Search by name, position or ID..."
-                    className="h-11 rounded-lg border-slate-200 bg-slate-50 pl-10 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#1D61D1] focus-visible:ring-[#1D61D1]/20"
+                    className={cn(inputClass, "pl-10")}
                   />
                 </div>
               </div>
@@ -200,9 +322,7 @@ export function CreateTeamView() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-slate-900">
-                        {pl.name}
-                      </p>
+                      <p className="truncate font-semibold text-slate-900">{pl.name}</p>
                       <p className="truncate text-xs text-slate-500">
                         {pl.position} · {pl.playerId}
                       </p>
@@ -238,22 +358,42 @@ export function CreateTeamView() {
                 <CloudUpload className="h-4 w-4" strokeWidth={2} aria-hidden />
                 Visual identity
               </div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => {
+                  onLogoSelected(e.target.files?.[0] ?? null);
+                  e.target.value = "";
+                }}
+              />
               <button
                 type="button"
-                className="flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 transition-colors hover:border-[#1D61D1]/40 hover:bg-slate-50"
+                onClick={() => logoInputRef.current?.click()}
+                className="relative flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 transition-colors hover:border-[#1D61D1]/40 hover:bg-slate-50"
               >
-                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#1D61D1]/10 text-[#1D61D1]">
-                  <ImagePlus className="h-6 w-6" strokeWidth={1.75} />
-                </div>
-                <p className="text-sm font-semibold text-slate-900">
-                  Upload Team Logo
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Drag and drop or click to browse
-                </p>
-                <p className="mt-2 text-xs text-slate-400">
-                  SVG, PNG or JPG (min. 400×400px)
-                </p>
+                {logoPreview ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={logoPreview}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : (
+                  <>
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#1D61D1]/10 text-[#1D61D1]">
+                      <ImagePlus className="h-6 w-6" strokeWidth={1.75} />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900">Upload Team Logo</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Drag and drop or click to browse
+                    </p>
+                    <p className="mt-2 text-xs text-slate-400">
+                      SVG, PNG or JPG (min. 400×400px)
+                    </p>
+                  </>
+                )}
               </button>
             </CardHeader>
           </Card>
@@ -267,17 +407,14 @@ export function CreateTeamView() {
               <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
                 <div className="flex items-center gap-3">
                   <Trophy className="h-5 w-5 text-amber-500" strokeWidth={1.75} />
-                  <span className="text-sm font-semibold text-slate-800">
-                    Assign Captain
-                  </span>
+                  <span className="text-sm font-semibold text-slate-800">Assign Captain</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Avatar className="h-9 w-9 border border-slate-200">
-                    <AvatarImage
-                      src="https://images.unsplash.com/photo-1531384441138-273dee84f30a?w=80&h=80&fit=crop"
-                      alt=""
-                    />
-                    <AvatarFallback>MC</AvatarFallback>
+                    {captain?.image ? (
+                      <AvatarImage src={captain.image} alt="" />
+                    ) : null}
+                    <AvatarFallback>{captain?.initials ?? "—"}</AvatarFallback>
                   </Avatar>
                   <button
                     type="button"
@@ -308,14 +445,18 @@ export function CreateTeamView() {
           <div className="flex flex-col gap-3 pt-2">
             <Button
               type="button"
+              disabled={creating}
+              aria-busy={creating}
+              onClick={() => void handleCreateTeam()}
               className="h-12 w-full rounded-xl bg-[#1D61D1] text-base font-semibold text-white shadow-lg shadow-[#1D61D1]/25 hover:bg-[#1a56bd]"
             >
               <Rocket className="h-4 w-4" aria-hidden />
-              Create Team
+              {creating ? "Creating…" : "Create Team"}
             </Button>
             <Button
               type="button"
               variant="outline"
+              disabled={creating}
               className="h-12 w-full rounded-xl border-slate-200 bg-white text-base font-semibold text-slate-700 hover:bg-slate-50"
               onClick={() => router.push("/teams")}
             >

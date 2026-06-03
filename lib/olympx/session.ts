@@ -1,7 +1,9 @@
 import { extractAuthTokenFromApiBody } from "@/lib/olympx/extract-token";
 import { authDebug, authDebugMaskToken } from "@/lib/olympx/auth-debug";
+import { decodeSessionCookieValue, encodeSessionCookieValue } from "@/lib/olympx/session-cookie-codec";
 import {
   OLYMPX_ACCESS_TOKEN_KEY,
+  OLYMPX_AUTH_JSON_KEY,
   OLYMPX_SESSION_CHANGED,
 } from "@/lib/olympx/session-constants";
 import { clearOlympxSessionOnServer } from "@/lib/olympx/sync-server-session";
@@ -14,8 +16,6 @@ import {
   safeSessionStorageSet,
 } from "@/lib/safe-web-storage";
 
-export const OLYMPX_AUTH_JSON_KEY = "olympx_auth";
-
 const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 60; // 60 days
 
 /** When all Web Storage APIs throw (sandboxed iframe), keep session for this tab only. */
@@ -25,15 +25,17 @@ let memoryAuthJson: string | null = null;
 function readCookieValue(name: string): string | null {
   if (typeof document === "undefined") return null;
   try {
-    const row = document.cookie
-      .split("; ")
-      .find((r) => r.startsWith(`${name}=`));
-    if (!row) return null;
-    try {
-      return decodeURIComponent(row.slice(name.length + 1));
-    } catch {
-      return row.slice(name.length + 1);
+    for (const part of document.cookie.split(";")) {
+      const trimmed = part.trim();
+      if (!trimmed.startsWith(`${name}=`)) continue;
+      const raw = trimmed.slice(name.length + 1);
+      try {
+        return decodeSessionCookieValue(decodeURIComponent(raw));
+      } catch {
+        return decodeSessionCookieValue(raw);
+      }
     }
+    return null;
   } catch {
     return null;
   }
@@ -42,7 +44,8 @@ function readCookieValue(name: string): string | null {
 function writeSessionCookie(token: string): void {
   if (typeof document === "undefined") return;
   try {
-    document.cookie = `${OLYMPX_ACCESS_TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=${COOKIE_MAX_AGE_SEC}; SameSite=Lax`;
+    const encoded = encodeSessionCookieValue(token);
+    document.cookie = `${OLYMPX_ACCESS_TOKEN_KEY}=${encoded}; path=/; max-age=${COOKIE_MAX_AGE_SEC}; SameSite=Lax`;
   } catch {
     /* ignore */
   }
@@ -164,6 +167,14 @@ export function readOlympxAuthJsonFromStorage(): OlympxAuthResponse | null {
   return null;
 }
 
+/** Prefer an explicit token, then storage/cookie mirror. */
+export function resolveClientOlympxAccessToken(
+  explicit?: string | null,
+): string | null {
+  if (typeof explicit === "string" && explicit.trim()) return explicit.trim();
+  return readOlympxAccessToken();
+}
+
 /** Used by session checks after mount. */
 export function readOlympxAccessToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -173,6 +184,19 @@ export function readOlympxAccessToken(): string | null {
   const fromCookie = readCookieValue(OLYMPX_ACCESS_TOKEN_KEY);
   if (fromCookie?.trim()) return fromCookie.trim();
   return null;
+}
+
+/** True when `olympx_access_token` is present in document.cookie (middleware-aligned name). */
+export function clientHasSessionCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  for (const part of document.cookie.split(";")) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(`${OLYMPX_ACCESS_TOKEN_KEY}=`)) {
+      const raw = trimmed.slice(OLYMPX_ACCESS_TOKEN_KEY.length + 1);
+      return Boolean(decodeSessionCookieValue(raw)?.trim());
+    }
+  }
+  return false;
 }
 
 function writeTokenPairToWebStorage(token: string, json: string): {

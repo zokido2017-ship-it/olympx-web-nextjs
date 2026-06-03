@@ -52,3 +52,8 @@ export function getOrganizationBasePath(slug: string): string {
 export function getTeamBasePath(slug: string): string {
   return `/teams/${slug}`;
 }
+
+/** Routes under /organizations that do not require OTP (e.g. public invite links). */
+export function isPublicOrganisationAccessPath(_pathname: string): boolean {
+  return false;
+}

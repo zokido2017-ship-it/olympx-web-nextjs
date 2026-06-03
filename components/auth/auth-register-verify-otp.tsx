@@ -30,7 +30,7 @@ import {
   persistOlympxAuthResponse,
   type OlympxAuthResponse,
 } from "@/lib/olympx/session";
-import { syncOlympxSessionToServer } from "@/lib/olympx/sync-server-session";
+import { establishSessionAndNavigateAsync } from "@/lib/olympx/post-login-navigation";
 import { toastAfterSendOtp } from "@/lib/olympx/toast-send-otp-result";
 import {
   registrationOtpSchema,
@@ -150,17 +150,11 @@ export function AuthRegisterVerifyOtpPage() {
       clearRegisterDraft();
       clearPendingRegistrationAvatar();
       persistOlympxAuthResponse(sessionPayload);
-      const synced = await syncOlympxSessionToServer(token);
       applyAuthResponse(sessionPayload);
-      if (!synced) {
-        toast.message("Session cookie sync delayed", {
-          description: "If the dashboard does not load, sign in again.",
-        });
-      }
       toast.success("Welcome to Olympx", {
         description: "Your account is ready.",
       });
-      window.location.assign(DEFAULT_POST_LOGIN_PATH);
+      await establishSessionAndNavigateAsync(token, DEFAULT_POST_LOGIN_PATH);
     } catch (e) {
       if (isOlympxHttpError(e) && registerLooksLikeDuplicate(e)) {
         toast.error("Account may already exist", {

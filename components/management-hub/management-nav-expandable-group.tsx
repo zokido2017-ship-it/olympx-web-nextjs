@@ -56,9 +56,7 @@ export function ManagementNavExpandableGroup({
     return true;
   });
 
-  React.useEffect(() => {
-    if (sectionActive) setOpen(true);
-  }, [sectionActive]);
+  const displayOpen = sectionActive || open;
 
   const toggle = () => {
     setOpen((prev) => {
@@ -95,7 +93,7 @@ export function ManagementNavExpandableGroup({
           id={`${id}-toggle`}
           onClick={toggle}
           className="relative z-[1] flex w-full flex-1 items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-          aria-expanded={open}
+          aria-expanded={displayOpen}
           aria-controls={`${id}-submenu`}
         >
           <Icon
@@ -111,7 +109,7 @@ export function ManagementNavExpandableGroup({
           <ChevronDown
             className={cn(
               "h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ease-out motion-reduce:transition-none",
-              open ? "rotate-180" : "rotate-0",
+              displayOpen ? "rotate-180" : "rotate-0",
             )}
             aria-hidden
           />
@@ -124,7 +122,7 @@ export function ManagementNavExpandableGroup({
         aria-labelledby={`${id}-toggle`}
         className={cn(
           "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
-          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          displayOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
         )}
       >
         <div className="min-h-0 overflow-hidden">

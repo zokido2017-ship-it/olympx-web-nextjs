@@ -22,10 +22,16 @@ import {
   readPendingRegistrationAvatar,
   storePendingRegistrationAvatar,
 } from "@/lib/olympx/pending-registration-avatar";
+import { useRegisterDraft } from "@/components/auth/register-draft-context";
 import {
-  storeRegisterDraft,
+  formatDateOfBirthForOlympxApi,
+  isValidOlympxDateOfBirth,
+} from "@/lib/olympx/format-dob";
+import { isRegisterDraftComplete } from "@/lib/olympx/register-draft-utils";
+import {
   type OlympxRegisterDraft,
 } from "@/lib/olympx/pending-registration";
+import { authDebug } from "@/lib/olympx/auth-debug";
 import { toastAfterSendOtp } from "@/lib/olympx/toast-send-otp-result";
 import {
   registrationSchema,
@@ -34,7 +40,11 @@ import {
 import { cn } from "@/lib/utils";
 import { splitE164ForOlympx } from "@/lib/phone-e164-parts";
 import { phoneFieldValueFromForm } from "@/lib/phone-field-value";
-import { olympxSendOtp } from "@/services/olympx-auth.service";
+import {
+  isOlympxHttpError,
+  olympxSendOtp,
+  registerLooksLikeDuplicate,
+} from "@/services/olympx-auth.service";
 import { GENDER_OPTIONS, type Gender } from "@/types/user-profile";
 
 const fieldShell = cn(
@@ -94,7 +104,9 @@ function initialsFromNames(first: string, last: string) {
 
 export function AuthRegisterPage() {
   const router = useRouter();
+  const { setDraft } = useRegisterDraft();
   const [busy, setBusy] = React.useState(false);
+  const [apiError, setApiError] = React.useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null);
   const [avatarError, setAvatarError] = React.useState<string | null>(null);
 
@@ -159,30 +171,75 @@ export function AuthRegisterPage() {
 
   async function onSendOtp(values: RegistrationInput) {
     setBusy(true);
+    setApiError(null);
+    const e164 = values.phone.trim();
+
     try {
-      const e164 = values.phone.trim();
       const parts = splitE164ForOlympx(e164);
+      authDebug("otp-api", "register: send-otp request", {
+        phone_code: parts.phone_code,
+        mobile_number: parts.mobile_number,
+      });
+
       const sendRes = await olympxSendOtp(parts);
 
       const draft: OlympxRegisterDraft = {
         v: 1,
         phoneE164: e164,
-        firstName: values.firstName,
-        lastName: values.lastName,
-        contactEmail: values.contactEmail,
-        dob: values.dob,
+        phoneCode: parts.phone_code,
+        mobileNumber: parts.mobile_number,
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        contactEmail: values.contactEmail.trim(),
+        dob: formatDateOfBirthForOlympxApi(values.dob.trim()),
         gender: values.gender,
       };
 
-      storeRegisterDraft(draft);
+      if (!isValidOlympxDateOfBirth(draft.dob)) {
+        toast.error("Enter a valid date of birth.");
+        return;
+      }
+
+      if (!isRegisterDraftComplete(draft)) {
+        toast.error("Please complete all registration fields before continuing.");
+        return;
+      }
+
+      setDraft(draft);
+
+      authDebug("otp-api", "register: draft stored", {
+        phoneE164: draft.phoneE164,
+        dob: draft.dob,
+        email: draft.contactEmail,
+      });
 
       toastAfterSendOtp(sendRes, {
         title: "Code sent",
         description: "Enter the verification code on the next screen.",
       });
-      router.push("/register/verify-otp");
+      router.push(
+        `/register/verify-otp?phone=${encodeURIComponent(e164)}`,
+      );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not send verification code.");
+      if (isOlympxHttpError(e) && registerLooksLikeDuplicate(e)) {
+        const message = "This phone number or email may already be registered.";
+        setApiError(message);
+        toast.error("Account may already exist", {
+          description: "Try signing in with this phone number instead.",
+        });
+        authDebug("otp-api", "register: send-otp duplicate", { status: e.status });
+        router.push(`/login?phone=${encodeURIComponent(e164)}`);
+        return;
+      }
+
+      const message =
+        e instanceof Error ? e.message : "Could not send verification code.";
+      setApiError(message);
+      toast.error(message);
+      authDebug("otp-api", "register: send-otp failed", {
+        status: isOlympxHttpError(e) ? e.status : 0,
+        message,
+      });
     } finally {
       setBusy(false);
     }
@@ -215,6 +272,15 @@ export function AuthRegisterPage() {
           onSubmit={handleSubmit(onSendOtp)}
           noValidate
         >
+          {apiError ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-200/90 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-200"
+            >
+              {apiError}
+            </div>
+          ) : null}
+
           <ProfileAvatarUpload
             previewUrl={avatarPreview}
             initials={initialsFromNames(firstName, lastName)}

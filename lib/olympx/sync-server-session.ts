@@ -1,4 +1,5 @@
 import { authDebug } from "@/lib/olympx/auth-debug";
+import { recordAuthFlowStep } from "@/lib/olympx/auth-flow-tracer";
 
 const SESSION_API = "/api/auth/olympx-session";
 
@@ -11,6 +12,11 @@ export async function checkOlympxServerSession(): Promise<boolean> {
       credentials: "include",
       headers: { Accept: "application/json" },
       cache: "no-store",
+    });
+    recordAuthFlowStep("session.get", { status: res.status, ok: res.ok });
+    authDebug("sync-server", "GET /api/auth/olympx-session", {
+      status: res.status,
+      ok: res.ok,
     });
     return res.ok;
   } catch (e) {
@@ -30,10 +36,16 @@ export async function syncOlympxSessionToServer(token: string): Promise<boolean>
     const res = await fetch(SESSION_API, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Origin: window.location.origin,
+        Referer: window.location.href,
+      },
       body: JSON.stringify({ token: trimmed }),
     });
     const ok = res.ok;
+    recordAuthFlowStep("session.post", { status: res.status, ok });
     authDebug("sync-server", ok ? "POST olympx-session succeeded" : "POST olympx-session failed", {
       status: res.status,
     });

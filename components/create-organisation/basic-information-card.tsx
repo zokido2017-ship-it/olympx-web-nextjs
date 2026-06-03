@@ -9,6 +9,7 @@ import { hubInputFocusClass } from "@/lib/management-hub-theme";
 import { cn } from "@/lib/utils";
 
 import { CreateOrgSectionCard } from "./create-org-section-card";
+import type { CreateOrganisationFieldErrors } from "@/lib/validations/organisation";
 
 const controlClass =
   "rounded-lg border bg-slate-50 text-sm text-slate-900 shadow-sm transition-[border-color,box-shadow] placeholder:text-slate-400";
@@ -21,7 +22,7 @@ type BasicInformationCardProps = {
   headquarters: string;
   onHeadquartersChange: (v: string) => void;
   showErrors: boolean;
-  categoryError: boolean;
+  fieldErrors: CreateOrganisationFieldErrors;
 };
 
 export function BasicInformationCard({
@@ -32,9 +33,11 @@ export function BasicInformationCard({
   headquarters,
   onHeadquartersChange,
   showErrors,
-  categoryError,
+  fieldErrors,
 }: BasicInformationCardProps) {
-  const catInvalid = showErrors && categoryError;
+  const catInvalid = showErrors && Boolean(fieldErrors.category);
+  const bioInvalid = showErrors && Boolean(fieldErrors.bio);
+  const hqInvalid = showErrors && Boolean(fieldErrors.headquarters);
 
   return (
     <CreateOrgSectionCard title="Basic Information">
@@ -51,13 +54,19 @@ export function BasicInformationCard({
             placeholder="Describe your organisation's history, mission, and goals..."
             value={bio}
             onChange={(e) => onBioChange(e.target.value)}
+            aria-invalid={bioInvalid}
             className={cn(
               "min-h-[152px] resize-y px-3.5 py-3",
               controlClass,
-              "border-slate-200",
+              bioInvalid ? "border-rose-400 ring-2 ring-rose-500/15" : "border-slate-200",
               hubInputFocusClass,
             )}
           />
+          {bioInvalid ? (
+            <p className="text-xs font-medium text-rose-600" role="alert">
+              {fieldErrors.bio}
+            </p>
+          ) : null}
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2">
@@ -91,7 +100,7 @@ export function BasicInformationCard({
             </div>
             {catInvalid ? (
               <p className="text-xs font-medium text-rose-600" role="alert">
-                Select a category.
+                {fieldErrors.category ?? "Select a category."}
               </p>
             ) : null}
           </div>
@@ -113,13 +122,20 @@ export function BasicInformationCard({
                 placeholder="City, Country"
                 value={headquarters}
                 onChange={(e) => onHeadquartersChange(e.target.value)}
+                aria-invalid={hqInvalid}
                 className={cn(
                   controlClass,
                   "h-11 border-slate-200 pl-10 pr-3.5",
+                  hqInvalid ? "border-rose-400 ring-2 ring-rose-500/15" : "",
                   hubInputFocusClass,
                 )}
               />
             </div>
+            {hqInvalid ? (
+              <p className="text-xs font-medium text-rose-600" role="alert">
+                {fieldErrors.headquarters}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 
+import { readSessionTokenFromRequest } from "@/lib/olympx/session-store";
+
 const DEV_DEFAULT_BACKEND = "http://127.0.0.1:8000";
 
 function backendBaseUrl(): string | null {
@@ -49,6 +51,16 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
       (init.headers as Headers).set(key, value);
     }
   });
+
+  const headers = init.headers as Headers;
+  if (!headers.get("authorization")) {
+    const bearer =
+      readSessionTokenFromRequest(req) ||
+      req.headers.get("x-olympx-access-token")?.trim();
+    if (bearer) {
+      headers.set("Authorization", `Bearer ${bearer}`);
+    }
+  }
 
   if (req.method !== "GET" && req.method !== "HEAD") {
     const buf = await req.arrayBuffer();

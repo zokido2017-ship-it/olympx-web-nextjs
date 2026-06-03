@@ -3,17 +3,25 @@
 import * as React from "react";
 
 import type { DashboardUser } from "@/lib/data/dashboard-user.mock";
-import { DEFAULT_DASHBOARD_USER } from "@/lib/data/dashboard-user.mock";
 import {
+  isPlaceholderDashboardUser,
   persistDashboardUser,
+  readInitialDashboardUser,
   readStoredDashboardUser,
+  resolveDashboardUserFromSession,
 } from "@/lib/dashboard-user-storage";
-import { readOlympxAuthJsonFromStorage } from "@/lib/olympx/session";
+import {
+  readOlympxAccessToken,
+  readOlympxAuthJsonFromStorage,
+  subscribeOlympxSession,
+} from "@/lib/olympx/session";
+import { useOlympxAuth } from "@/hooks/use-olympx-auth";
 import { fetchOlympxUserProfile } from "@/services/olympx-user.service";
 
 type DashboardUserContextValue = {
   user: DashboardUser;
   setUser: React.Dispatch<React.SetStateAction<DashboardUser>>;
+  loading: boolean;
 };
 
 const DashboardUserContext = React.createContext<DashboardUserContextValue | null>(
@@ -21,40 +29,76 @@ const DashboardUserContext = React.createContext<DashboardUserContextValue | nul
 );
 
 export function DashboardUserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = React.useState<DashboardUser>(() => {
-    const stored = readStoredDashboardUser();
-    return stored ?? DEFAULT_DASHBOARD_USER;
-  });
+  const { session, ready } = useOlympxAuth();
+  const [user, setUser] = React.useState<DashboardUser>(readInitialDashboardUser);
+  const [loading, setLoading] = React.useState(true);
 
-  React.useLayoutEffect(() => {
-    let cancelled = false;
-    void (async () => {
+  const hydrateUser = React.useCallback(async () => {
+    if (!ready) {
+      return;
+    }
+
+    const authSession = session ?? readOlympxAuthJsonFromStorage();
+    const hasToken = Boolean(readOlympxAccessToken());
+    const storedUser = readStoredDashboardUser();
+
+    if (!hasToken && !authSession && !storedUser) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    const fromSession = resolveDashboardUserFromSession(authSession);
+    console.log("[DashboardUser] session resolved", {
+      authSession,
+      fromSession,
+      storedDashboardUser: readStoredDashboardUser(),
+      hasToken,
+    });
+    if (!isPlaceholderDashboardUser(fromSession)) {
+      setUser(fromSession);
+      persistDashboardUser(fromSession);
+    } else if (storedUser) {
+      setUser(storedUser);
+    }
+
+    if (hasToken) {
       try {
         const profile = await fetchOlympxUserProfile();
-        if (cancelled || !profile) return;
-
-        // Reuse the existing auth->user normalizer by temporarily shaping a minimal auth response.
-        const authJson = readOlympxAuthJsonFromStorage();
-        const syntheticAuth = { ...(authJson ?? {}), user: profile };
-        // Lazily import to avoid circular deps with storage <-> provider.
-        const { syncDashboardUserAfterAuth } = await import(
-          "@/lib/dashboard-user-storage"
-        );
-        const next = syncDashboardUserAfterAuth(syntheticAuth);
-        if (cancelled) return;
-        setUser(next);
-        persistDashboardUser(next);
-      } catch {
-        // Keep stored/default user if profile fetch fails.
+        if (profile) {
+          const next = resolveDashboardUserFromSession(authSession, profile);
+          console.log("[DashboardUser] profile fetched", { profile, resolvedUser: next });
+          if (!isPlaceholderDashboardUser(next)) {
+            setUser(next);
+            persistDashboardUser(next);
+          }
+        }
+      } catch (error) {
+        console.log("[DashboardUser] profile fetch failed", error);
+        const fallback = resolveDashboardUserFromSession(authSession);
+        if (!isPlaceholderDashboardUser(fallback)) {
+          setUser(fallback);
+        }
       }
-    })();
+    }
 
-    return () => {
-      cancelled = true;
+    setLoading(false);
+  }, [ready, session]);
+
+  React.useLayoutEffect(() => {
+    const runHydrate = () => {
+      void hydrateUser();
     };
-  }, []);
+    queueMicrotask(runHydrate);
+    const unsub = subscribeOlympxSession(runHydrate);
+    return unsub;
+  }, [hydrateUser]);
 
-  const value = React.useMemo(() => ({ user, setUser }), [user]);
+  const value = React.useMemo(
+    () => ({ user, setUser, loading }),
+    [user, loading],
+  );
 
   return (
     <DashboardUserContext.Provider value={value}>

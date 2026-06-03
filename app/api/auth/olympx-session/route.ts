@@ -1,22 +1,33 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { authDebug } from "@/lib/olympx/auth-debug";
 import { isSameSiteRequest as sameSiteOk } from "@/lib/olympx/same-site-request";
 import { OLYMPX_ACCESS_TOKEN_KEY } from "@/lib/olympx/session-constants";
-
-const MAX_AGE_SEC = 60 * 60 * 24 * 60; // 60 days
+import {
+  encodeSessionCookieValue,
+  readSessionTokenFromRequest,
+  sessionCookieOptions,
+} from "@/lib/olympx/session-store";
 
 /** Lets the client confirm the middleware session cookie exists (avoids login/dashboard loops). */
 export async function GET(req: Request) {
   if (!sameSiteOk(req)) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
-  const jar = await cookies();
-  const v = jar.get(OLYMPX_ACCESS_TOKEN_KEY)?.value?.trim();
-  if (v) {
+  const token = readSessionTokenFromRequest(req)?.trim();
+  if (token) {
     return NextResponse.json({ ok: true as const });
   }
+  const cookieHeader = req.headers.get("cookie");
+  const rawPresent = Boolean(
+    cookieHeader?.includes(`${OLYMPX_ACCESS_TOKEN_KEY}=`),
+  );
+  authDebug("api:olympx-session", "GET: no session cookie on request", {
+    key: OLYMPX_ACCESS_TOKEN_KEY,
+    cookieHeaderPresent: Boolean(cookieHeader),
+    rawKeyPresent: rawPresent,
+    decodeFailed: rawPresent,
+  });
   return NextResponse.json({ ok: false }, { status: 401 });
 }
 
@@ -57,16 +68,11 @@ export async function POST(req: Request) {
     token: `${token.slice(0, 4)}… (len=${token.length})`,
   });
   const res = NextResponse.json({ ok: true as const });
-  res.cookies.set(OLYMPX_ACCESS_TOKEN_KEY, token, {
-    path: "/",
-    maxAge: MAX_AGE_SEC,
-    sameSite: "lax",
-    // Must NOT be HttpOnly: middleware + `readOlympxAccessToken()` / RequireOlympxAuth
-    // must see the same session. HttpOnly hides the cookie from JS → dashboard loads with
-    // a valid cookie but token === null → /login ↔ /dashboard loop.
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-  });
+  res.cookies.set(
+    OLYMPX_ACCESS_TOKEN_KEY,
+    encodeSessionCookieValue(token),
+    sessionCookieOptions(),
+  );
 
   authDebug(
     "api:olympx-session",

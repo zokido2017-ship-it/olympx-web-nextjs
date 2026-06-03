@@ -9,11 +9,10 @@ import { hubInputFocusClass } from "@/lib/management-hub-theme";
 import { cn } from "@/lib/utils";
 
 import { CreateOrgSectionCard } from "./create-org-section-card";
+import type { CreateOrganisationFieldErrors } from "@/lib/validations/organisation";
 
 const inputClass =
   "h-11 rounded-lg border bg-slate-50 text-sm text-slate-900 shadow-sm transition-[border-color,box-shadow] placeholder:text-slate-400 disabled:opacity-60";
-
-type FieldErrors = Partial<Record<"orgName" | "handle", boolean>>;
 
 type ProfileBrandingCardProps = {
   orgName: string;
@@ -25,7 +24,7 @@ type ProfileBrandingCardProps = {
   onBannerSelected: (file: File | null) => void;
   onLogoSelected: (file: File | null) => void;
   showErrors: boolean;
-  errors: FieldErrors;
+  fieldErrors: CreateOrganisationFieldErrors;
 };
 
 export function ProfileBrandingCard({
@@ -38,13 +37,13 @@ export function ProfileBrandingCard({
   onBannerSelected,
   onLogoSelected,
   showErrors,
-  errors,
+  fieldErrors,
 }: ProfileBrandingCardProps) {
   const bannerInputRef = React.useRef<HTMLInputElement>(null);
   const logoInputRef = React.useRef<HTMLInputElement>(null);
 
-  const orgInvalid = showErrors && Boolean(errors.orgName);
-  const handleInvalid = showErrors && Boolean(errors.handle);
+  const orgInvalid = showErrors && Boolean(fieldErrors.orgName);
+  const handleInvalid = showErrors && Boolean(fieldErrors.handle);
 
   return (
     <CreateOrgSectionCard title="Profile Branding">
@@ -149,7 +148,7 @@ export function ProfileBrandingCard({
             />
             {orgInvalid ? (
               <p className="text-xs font-medium text-rose-600" role="alert">
-                Enter an organization name.
+                {fieldErrors.orgName ?? "Enter an organization name."}
               </p>
             ) : null}
           </div>
@@ -185,7 +184,7 @@ export function ProfileBrandingCard({
             </div>
             {handleInvalid ? (
               <p className="text-xs font-medium text-rose-600" role="alert">
-                Choose a unique handle.
+                {fieldErrors.handle ?? "Choose a unique handle."}
               </p>
             ) : null}
           </div>

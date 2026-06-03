@@ -1,28 +1,22 @@
 "use client";
 
-import { readOlympxAccessToken } from "@/lib/olympx/session";
+import { extractUserRecordFromPayload } from "@/lib/dashboard-user-storage";
+import {
+  olympxAuthenticatedFetch,
+  olympxProxyUrl,
+} from "@/lib/olympx/authenticated-fetch";
+import { resolveCreateClientToken } from "@/lib/olympx/resolve-create-client-token";
 
 export type OlympxUserProfilePayload = Record<string, unknown>;
 
 function unwrapUserFromProfilePayload(payload: unknown): Record<string, unknown> | null {
-  if (!payload || typeof payload !== "object") return null;
-  const o = payload as Record<string, unknown>;
-  const d = o.data;
-  if (d && typeof d === "object" && !Array.isArray(d)) return d as Record<string, unknown>;
-  const u = o.user;
-  if (u && typeof u === "object" && !Array.isArray(u)) return u as Record<string, unknown>;
-  return o;
+  return extractUserRecordFromPayload(payload);
 }
 
-async function getJsonWithBearer(path: string, token: string): Promise<unknown> {
-  const normalized = path.replace(/^\/+/, "");
-  const res = await fetch(`/api/olympx/${normalized}`, {
+async function getJsonWithBearer(path: string, accessToken?: string | null): Promise<unknown> {
+  const res = await olympxAuthenticatedFetch(olympxProxyUrl(path), {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    cache: "no-store",
+    accessToken,
   });
 
   if (!res.ok) {
@@ -41,17 +35,18 @@ async function getJsonWithBearer(path: string, token: string): Promise<unknown> 
 
 /**
  * Fetch the logged-in user's profile using the stored bearer token.
- * The exact endpoint varies by backend, so we try a small set of common paths.
+ * Laravel Scribe documents this as GET /api/me (not /api/v1/auth/me).
  */
 export async function fetchOlympxUserProfile(): Promise<OlympxUserProfilePayload | null> {
-  const token = readOlympxAccessToken();
+  const token = await resolveCreateClientToken();
   if (!token) return null;
 
   const candidates = [
     process.env.NEXT_PUBLIC_OLYMPX_PROFILE_PATH,
+    "api/me",
+    "api/v1/me",
     "api/v1/auth/me",
     "api/v1/auth/profile",
-    "api/v1/me",
     "api/v1/profile",
     "api/v1/user",
     "api/v1/users/me",
@@ -62,7 +57,7 @@ export async function fetchOlympxUserProfile(): Promise<OlympxUserProfilePayload
     try {
       const raw = await getJsonWithBearer(path, token);
       const u = unwrapUserFromProfilePayload(raw);
-      return u ?? null;
+      if (u) return u;
     } catch (e) {
       lastError = e;
     }
@@ -71,4 +66,3 @@ export async function fetchOlympxUserProfile(): Promise<OlympxUserProfilePayload
   if (lastError) throw lastError;
   return null;
 }
-

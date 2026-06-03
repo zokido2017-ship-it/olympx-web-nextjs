@@ -29,6 +29,8 @@ import { syncDashboardUserAfterAuth } from "@/lib/dashboard-user-storage";
 import { DEFAULT_POST_LOGIN_PATH } from "@/lib/olympx/default-post-login";
 import { useOlympxAuth } from "@/hooks/use-olympx-auth";
 import { authDebug, authDebugMaskToken } from "@/lib/olympx/auth-debug";
+import { startAuthFlow, trace, traceToken } from "@/lib/olympx/auth-flow-trace";
+import { recordAuthFlowStepWithStorage } from "@/lib/olympx/auth-flow-tracer";
 import {
   clearPendingOlympxOtp,
   readPendingOlympxOtp,
@@ -46,10 +48,8 @@ import {
   readOlympxAccessToken,
   readOlympxAuthJsonFromStorage,
 } from "@/lib/olympx/session";
-import {
-  checkOlympxServerSession,
-  syncOlympxSessionToServer,
-} from "@/lib/olympx/sync-server-session";
+import { establishSessionAndNavigateAsync } from "@/lib/olympx/post-login-navigation";
+import { checkOlympxServerSession } from "@/lib/olympx/sync-server-session";
 import { toastAfterSendOtp } from "@/lib/olympx/toast-send-otp-result";
 import {
   phoneLoginSchema,
@@ -152,6 +152,7 @@ export function AuthLoginPage() {
 
   React.useLayoutEffect(() => {
     const sp = new URLSearchParams(window.location.search);
+    const onOtpStep = sp.get("step") === "otp";
 
     void (async () => {
       let t = readOlympxAccessToken();
@@ -160,17 +161,26 @@ export function AuthLoginPage() {
         ensureOlympxSessionCookieFromStorage();
         t = readOlympxAccessToken();
       }
-      if (t) {
-        await syncOlympxSessionToServer(t);
+
+      // Do not hijack the OTP step with a stale storage token — wait for verifyOtp.
+      if (t && !onOtpStep) {
+        const destination = dest();
+        if (await checkOlympxServerSession()) {
+          authDebug("auth-login", "resume session (cookie already set)", {
+            token: authDebugMaskToken(t),
+            destination,
+          });
+          window.location.assign(destination);
+          return;
+        }
         const resumed = readOlympxAuthJsonFromStorage() ?? { token: t };
         applyAuthResponse(resumed);
         syncDashboardUserAfterAuth(resumed);
-        authDebug("auth-login", "resume session", {
+        authDebug("auth-login", "resume session via form POST /complete", {
           token: authDebugMaskToken(t),
+          destination,
         });
-        // Full navigation so middleware always sees the session cookie (App Router
-        // soft nav can leave /login stuck after OTP despite a successful session sync).
-        window.location.assign(dest());
+        await establishSessionAndNavigateAsync(t, destination);
         return;
       }
 
@@ -275,24 +285,51 @@ export function AuthLoginPage() {
       otpBusyRef.current = true;
       setOtpWorking(true);
       try {
+        startAuthFlow("login-otp-verify");
+        trace("otp.validate.start");
+        authDebug("auth-login", "step 1: POST validate-otp", {});
+
         const auth = await olympxLoginWithOtp(handoff.parts, code);
+        trace("otp.validate.ok");
+        recordAuthFlowStepWithStorage("otp.validate.ok", {
+          hasUser: Boolean(auth.user),
+        });
+        authDebug("auth-login", "step 2: validate-otp OK — persisting token", {});
+
         persistOlympxAuthResponse(auth);
         const token = getOlympxTokenFromAuth(auth) ?? readOlympxAccessToken();
+        traceToken("session.post.start", token);
         if (!token) {
+          trace("otp.validate.fail", { reason: "no_token_in_response" });
+          recordAuthFlowStepWithStorage("otp.validate.fail", {
+            reason: "no_token_in_response",
+          });
           toast.error("No access token in API response.");
           return;
         }
-        if (!(await syncOlympxSessionToServer(token))) {
-          toast.error("Could not set session cookie. Try again.");
-          return;
-        }
+        recordAuthFlowStepWithStorage("otp.token.persisted", {});
+        authDebug("auth-login", "step 3: token saved to storage + document.cookie", {
+          token: authDebugMaskToken(token),
+        });
+
         applyAuthResponse(auth);
         syncDashboardUserAfterAuth(auth);
         clearPendingOlympxOtp();
         handoffRef.current = null;
         setDone(true);
         toast.success("Welcome back");
-        window.location.assign(dest());
+        const destination =
+          readNextSafe(new URLSearchParams(window.location.search)) ??
+          DEFAULT_POST_LOGIN_PATH;
+        authDebug("auth-login", "step 4: sync session cookie then navigate", {
+          destination,
+        });
+        const navigated = await establishSessionAndNavigateAsync(
+          token,
+          destination,
+        );
+        if (navigated) return;
+        toast.error("Could not establish session. Please try again.");
       } catch (e) {
         otpSubmitLock.current = "";
         if (isOlympxHttpError(e) && sendOtpRequiresRegistration(e)) {
@@ -301,11 +338,13 @@ export function AuthLoginPage() {
         }
         toast.error(e instanceof Error ? e.message : "Invalid code.");
       } finally {
-        otpBusyRef.current = false;
-        setOtpWorking(false);
+        if (!done) {
+          otpBusyRef.current = false;
+          setOtpWorking(false);
+        }
       }
     },
-    [activeHandoff, applyAuthResponse, backToPhone, dest, done, router],
+    [activeHandoff, applyAuthResponse, backToPhone, done, router],
   );
 
   const onOtpInput = React.useCallback(

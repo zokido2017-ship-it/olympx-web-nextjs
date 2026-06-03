@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 type CreateOrganizationHeaderProps = {
   onSaveDraft: () => void;
   onPublish: () => void;
+  publishing?: boolean;
   /** Shown after failed validation attempt */
   headerNotice?: ReactNode;
 };
@@ -23,6 +24,7 @@ type CreateOrganizationHeaderProps = {
 export function CreateOrganizationHeader({
   onSaveDraft,
   onPublish,
+  publishing = false,
   headerNotice,
 }: CreateOrganizationHeaderProps) {
   return (
@@ -62,6 +64,7 @@ export function CreateOrganizationHeader({
             type="button"
             variant="outline"
             onClick={onSaveDraft}
+            disabled={publishing}
             className={cn(
               "h-11 rounded-xl px-5 text-sm font-semibold shadow-sm",
               hubSecondaryButtonClass,
@@ -72,12 +75,14 @@ export function CreateOrganizationHeader({
           <Button
             type="button"
             onClick={onPublish}
+            disabled={publishing}
+            aria-busy={publishing}
             className={cn(
               "h-11 rounded-xl px-6 text-sm font-semibold shadow-md",
               hubPrimaryButtonClass,
             )}
           >
-            Publish
+            {publishing ? "Publishing…" : "Publish"}
           </Button>
         </div>
       </div>

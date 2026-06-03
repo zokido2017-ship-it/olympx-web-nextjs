@@ -1,10 +1,12 @@
 "use client";
 
 import { authDebug, authDebugMaskToken } from "@/lib/olympx/auth-debug";
+import { recordAuthFlowStep } from "@/lib/olympx/auth-flow-tracer";
 import {
   buildRegisterFormData,
   type RegisterMultipartInput,
 } from "@/lib/olympx/build-register-form-data";
+import { OLYMPX_REGISTER_API_PATH } from "@/lib/olympx/register-docs";
 import type { OlympxPhoneParts } from "@/lib/phone-e164-parts";
 import type { OlympxAuthResponse } from "@/lib/olympx/session";
 import { resolveOlympxTokenFromApiPayload } from "@/lib/olympx/session";
@@ -25,7 +27,7 @@ const PATH_VALIDATE_OTP =
   process.env.NEXT_PUBLIC_OLYMPX_VERIFY_OTP_PATH ??
   "api/v1/auth/validate-otp";
 const PATH_REGISTER =
-  process.env.NEXT_PUBLIC_OLYMPX_REGISTER_PATH ?? "api/v1/auth/register";
+  process.env.NEXT_PUBLIC_OLYMPX_REGISTER_PATH ?? OLYMPX_REGISTER_API_PATH;
 
 export class OlympxHttpError extends Error {
   readonly status: number;
@@ -157,6 +159,7 @@ async function postMultipart(
   try {
     res = await fetch(`/api/olympx/${normalized}`, {
       method: "POST",
+      credentials: "include",
       headers: { Accept: "application/json" },
       body: formData,
       cache: "no-store",
@@ -186,13 +189,22 @@ async function postMultipart(
   }
 
   if (!res.ok) {
-    const msg = errorMessageFromBody(data, res.status, text);
+    const msg = csrfAwareErrorMessage(res.status, errorMessageFromBody(data, res.status, text));
     throw new OlympxHttpError(msg, res.status, data);
   }
 
   return typeof data === "object" && data !== null
     ? (data as Record<string, unknown>)
     : {};
+}
+
+function csrfAwareErrorMessage(status: number, msg: string): string {
+  if (status !== 419) return msg;
+  return [
+    msg || "CSRF token mismatch.",
+    "Restart Next.js and Laravel, then try again.",
+    "Ensure OLYMPEX_API_BASE_URL=http://127.0.0.1:8000 and SANCTUM_STATEFUL_DOMAINS includes localhost:3000.",
+  ].join(" ");
 }
 
 async function postJson(
@@ -204,6 +216,7 @@ async function postJson(
   try {
     res = await fetch(`/api/olympx/${normalized}`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -236,7 +249,7 @@ async function postJson(
   }
 
   if (!res.ok) {
-    const msg = errorMessageFromBody(data, res.status, text);
+    const msg = csrfAwareErrorMessage(res.status, errorMessageFromBody(data, res.status, text));
     throw new OlympxHttpError(msg, res.status, data);
   }
 
@@ -265,6 +278,9 @@ export async function olympxLoginWithOtp(
   });
   authDebug("otp-api", "validate-otp response (top-level keys)", {
     keys: Object.keys(raw),
+    hasDataToken:
+      typeof (raw as { data?: { token?: unknown } }).data?.token === "string",
+    hasRootToken: typeof raw.token === "string",
   });
   const token = unwrapToken(raw);
   if (!token) {
@@ -280,6 +296,7 @@ export async function olympxLoginWithOtp(
   authDebug("otp-api", "token received from validate-otp", {
     token: authDebugMaskToken(token),
   });
+  recordAuthFlowStep("otp-api.token.received", { tokenLength: token.length });
   return { ...raw, token };
 }
 
@@ -292,12 +309,16 @@ export async function olympxRegister(
   const formData = buildRegisterFormData(input);
 
   authDebug("otp-api", "register multipart/form-data", {
+    path: PATH_REGISTER,
     fields: [
       "first_name",
       "last_name",
       "mobile",
+      "phone_code",
+      "mobile_number",
       "email",
       "date_of_birth",
+      "dob",
       "gender",
       "otp",
       ...(input.profileImage ? ["profile_image"] : []),

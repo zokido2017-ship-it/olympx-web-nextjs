@@ -12,6 +12,7 @@ import {
 import { flushSync } from "react-dom";
 
 import { authDebug, authDebugMaskToken } from "@/lib/olympx/auth-debug";
+import { recordAuthFlowStep } from "@/lib/olympx/auth-flow-tracer";
 import {
   ensureOlympxSessionCookieFromStorage,
   getOlympxTokenFromAuth,
@@ -80,39 +81,48 @@ export function OlympxAuthProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     let cancelled = false;
 
-    queueMicrotask(async () => {
-      if (cancelled) return;
+    queueMicrotask(() => {
       readIntoState();
-      const t = readOlympxAccessToken();
-      let serverOnly = false;
-      if (!t) {
-        const ok = await checkOlympxServerSession();
-        if (cancelled) return;
-        if (ok) {
-          setHasServerSession(true);
-          readIntoState();
-          serverOnly = !readOlympxAccessToken();
-        } else {
-          setHasServerSession(false);
-        }
-      }
+      const initialToken = readOlympxAccessToken();
 
-      if (!cancelled) {
+      if (initialToken) {
         setReady(true);
-        authDebug("auth-state", "OlympxAuthProvider boot complete", {
-          hasToken: Boolean(readOlympxAccessToken()),
-          serverSessionOnly: serverOnly,
+        recordAuthFlowStep("auth-provider.boot", {
+          hasToken: true,
+          isAuthenticatedWillBe: true,
         });
-      }
-
-      const final = readOlympxAccessToken();
-      if (!cancelled && final) {
-        void syncOlympxSessionToServer(final).then((syncOk) => {
-          authDebug(
-            "hydrate",
-            syncOk ? "session cookie synced on load" : "session cookie sync failed on load",
-          );
-        });
+        void (async () => {
+          await syncOlympxSessionToServer(initialToken);
+          if (cancelled) return;
+          ensureOlympxSessionCookieFromStorage();
+          readIntoState();
+          recordAuthFlowStep("auth-provider.boot.sync.done", {
+            hasToken: Boolean(readOlympxAccessToken()),
+          });
+          authDebug("auth-state", "OlympxAuthProvider boot complete (token)", {
+            hasToken: true,
+          });
+        })();
+      } else {
+        void (async () => {
+          const ok = await checkOlympxServerSession();
+          if (cancelled) return;
+          recordAuthFlowStep("auth-provider.boot", {
+            hasToken: false,
+            serverSessionOnly: ok,
+          });
+          if (ok) {
+            setHasServerSession(true);
+            readIntoState();
+          } else {
+            setHasServerSession(false);
+          }
+          setReady(true);
+          authDebug("auth-state", "OlympxAuthProvider boot complete", {
+            hasToken: Boolean(readOlympxAccessToken()),
+            serverSessionOnly: Boolean(ok && !readOlympxAccessToken()),
+          });
+        })();
       }
     });
 
