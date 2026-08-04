@@ -1,0 +1,63 @@
+import type { SportCategory } from "@/constants/sports-catalog";
+
+/**
+ * Maps catalog sport ids to cells on `public/sports/sport-icons-sheet.png` (7×5 grid).
+ * Keep in sync with `scripts/sport-icon-sheet-map.cjs`.
+ */
+export const SPORT_SHEET_SPRITE_INDEX: Record<string, number> = {
+  football: 0,
+  cricket: 1,
+  "basketball-outdoor": 2,
+  "volleyball-indoor": 3,
+  golf: 4,
+  "ultimate-frisbee": 5,
+  "tug-of-war": 6,
+  baseball: 8,
+  handball: 10,
+  marathon: 11,
+  badminton: 12,
+  "table-tennis": 13,
+  tennis: 15,
+  chess: 16,
+  squash: 17,
+  carrom: 18,
+  "basketball-indoor": 19,
+  "virtual-cycling": 20,
+  billiards: 21,
+  snooker: 22,
+  pickleball: 24,
+  futsal: 25,
+  "yoga-competition": 26,
+  hockey: 27,
+  esports: 28,
+  "sim-racing": 29,
+};
+
+export const SPORT_SHEET_CATEGORY: Record<string, SportCategory> = {
+  badminton: "indoor",
+  "table-tennis": "indoor",
+  squash: "indoor",
+  chess: "indoor",
+  carrom: "indoor",
+  billiards: "indoor",
+  snooker: "indoor",
+  pickleball: "indoor",
+  futsal: "indoor",
+  "volleyball-indoor": "indoor",
+  "basketball-indoor": "indoor",
+  handball: "indoor",
+  "yoga-competition": "indoor",
+  cricket: "outdoor",
+  football: "outdoor",
+  hockey: "outdoor",
+  "basketball-outdoor": "outdoor",
+  baseball: "outdoor",
+  "ultimate-frisbee": "outdoor",
+  "tug-of-war": "outdoor",
+  marathon: "outdoor",
+  golf: "outdoor",
+  tennis: "outdoor",
+  esports: "digital",
+  "sim-racing": "digital",
+  "virtual-cycling": "digital",
+};

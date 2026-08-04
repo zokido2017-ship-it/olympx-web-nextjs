@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --sportxo-navy: #0b1f3a;
+  --sportxo-blue: #2563eb;
+  --sportxo-white: #ffffff;
+  --sportxo-surface: #f5f7fb;
+  --sportxo-navy-muted: #1e3a5f;
+  --sportxo-text-muted: #64748b;
+  --sportxo-border: #e2e8f0;
+}
+
+@theme inline {
+  --color-sportxo-navy: var(--sportxo-navy);
+  --color-sportxo-blue: var(--sportxo-blue);
+  --color-sportxo-white: var(--sportxo-white);
+  --color-sportxo-surface: var(--sportxo-surface);
+  --color-sportxo-navy-muted: var(--sportxo-navy-muted);
+  --color-sportxo-text-muted: var(--sportxo-text-muted);
+  --color-sportxo-border: var(--sportxo-border);
+  --font-sans: var(--font-inter);
+  --shadow-sportxo-card: 0 4px 24px -4px rgb(11 31 58 / 0.08),
+    0 2px 8px -2px rgb(11 31 58 / 0.04);
+  --shadow-sportxo-soft: 0 1px 3px rgb(11 31 58 / 0.06);
+}
+
+body {
+  background: var(--sportxo-surface);
+  color: var(--sportxo-navy);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
