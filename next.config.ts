@@ -9,6 +9,17 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: dirname,
   },
+  // Hide the Next.js fingerprint on self-hosted responses.
+  poweredByHeader: false,
+  // Let nginx stream App Router responses instead of buffering the full body.
+  async headers() {
+    return [
+      {
+        source: "/:path*{/}?",
+        headers: [{ key: "X-Accel-Buffering", value: "no" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

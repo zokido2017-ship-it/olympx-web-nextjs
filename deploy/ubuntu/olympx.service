@@ -1,0 +1,30 @@
+[Unit]
+Description=Olympx Next.js (Aurora Identity)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=olympx
+Group=olympx
+WorkingDirectory=/opt/olympx
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=LISTEN_HOST=127.0.0.1
+# Next.js loads `.env.production` from WorkingDirectory. Do not use
+# EnvironmentFile for that file — it contains comments systemd cannot parse.
+ExecStart=/opt/olympx/scripts/run-production.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGINT
+SyslogIdentifier=olympx
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

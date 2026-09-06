@@ -38,6 +38,21 @@ npm run start
 npm run lint
 ```
 
+## Deploy (Ubuntu server)
+
+Self-host with Node 22, systemd, and nginx. Full steps: [`deploy/ubuntu/README.md`](deploy/ubuntu/README.md).
+
+```bash
+sudo git clone https://github.com/zokido2017-ship-it/olympx-web-nextjs.git /opt/olympx
+cd /opt/olympx
+sudo DOMAIN=app.example.com bash deploy/ubuntu/install.sh
+sudo -u olympx nano /opt/olympx/.env.production   # Firebase web config
+sudo bash /opt/olympx/deploy/ubuntu/update.sh
+sudo certbot --nginx -d app.example.com
+```
+
+Add the domain under Firebase Authentication → Authorized domains.
+
 ## Deploy (Vercel)
 
 Set env vars in the project dashboard; add domains under Firebase Authentication → Authorized domains.
