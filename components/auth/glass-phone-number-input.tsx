@@ -44,7 +44,6 @@ export const GlassPhoneNumberInput = React.forwardRef<
   return (
     <div className={cn("registration-phone-root", className)}>
       <PhoneInput
-        ref={ref}
         international
         defaultCountry={defaultCountry}
         flags={flags}
@@ -58,6 +57,7 @@ export const GlassPhoneNumberInput = React.forwardRef<
         disabled={disabled}
         numberInputProps={{
           id,
+          ref,
           "aria-invalid": ariaInvalid ?? false,
           onBlur,
         }}
