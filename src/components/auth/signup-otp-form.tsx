@@ -7,15 +7,14 @@ import {
   useEffect,
   useRef,
   useState,
-  type ClipboardEvent,
   type FormEvent,
-  type KeyboardEvent,
 } from "react";
 import { toast } from "sonner";
 import {
   SIGNUP_SESSION_STORAGE_KEY,
   type SignupSession,
 } from "@/types/auth";
+import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
 import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { navigateAfterSignupSuccess } from "@/lib/auth-navigation";
@@ -26,8 +25,7 @@ import {
 import { sendOtp } from "@/services/auth-api.service";
 import { completePhoneRegistration } from "@/services/registration.service";
 import { FieldError } from "@/components/ui/field-error";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/cn";
+import { OtpInputGroup, type OtpInputGroupHandle } from "@/components/ui/otp-input-group";
 
 const OTP_LENGTH = 4;
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -40,7 +38,7 @@ function formatCountdown(totalSeconds: number): string {
 
 export function SignupOtpForm() {
   const router = useRouter();
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const otpRef = useRef<OtpInputGroupHandle>(null);
   const [digits, setDigits] = useState<string[]>(() =>
     createDefaultOtpDigits(OTP_LENGTH),
   );
@@ -81,80 +79,39 @@ export function SignupOtpForm() {
 
   const otpValue = digits.join("");
 
-  const focusIndex = (index: number) => {
-    inputRefs.current[index]?.focus();
-  };
+  const submitOtp = useCallback(
+    async (code: string) => {
+      if (!/^\d{4}$/.test(code) || !signupSession || isSubmitting) {
+        return;
+      }
 
-  const updateDigit = (index: number, value: string) => {
-    const next = value.replace(/\D/g, "").slice(-1);
-    setDigits((prev) => {
-      const copy = [...prev];
-      copy[index] = next;
-      return copy;
-    });
-    setError(null);
-    if (next && index < OTP_LENGTH - 1) {
-      focusIndex(index + 1);
-    }
-  };
-
-  const handleKeyDown = (
-    index: number,
-    event: KeyboardEvent<HTMLInputElement>,
-  ) => {
-    if (event.key !== "Backspace") return;
-    if (digits[index]) return;
-    if (index > 0) {
-      event.preventDefault();
-      setDigits((prev) => {
-        const copy = [...prev];
-        copy[index - 1] = "";
-        return copy;
-      });
-      focusIndex(index - 1);
-    }
-  };
-
-  const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    const pasted = event.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, OTP_LENGTH);
-    if (!pasted) return;
-
-    const next = Array.from({ length: OTP_LENGTH }, (_, i) => pasted[i] ?? "");
-    setDigits(next);
-    setError(null);
-    focusIndex(Math.min(pasted.length, OTP_LENGTH - 1));
-  };
+      setIsSubmitting(true);
+      setError(null);
+      try {
+        await completePhoneRegistration(signupSession, code);
+        safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
+        toast.success("Account created");
+        navigateAfterSignupSuccess(router);
+      } catch (submitError) {
+        setError(
+          getApiErrorMessage(submitError, "Could not complete registration."),
+        );
+        otpRef.current?.focus(0);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [isSubmitting, router, signupSession],
+  );
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!/^\d{4}$/.test(otpValue)) {
       setError("Enter the 4-digit OTP");
-      focusIndex(0);
+      otpRef.current?.focus(0);
       return;
     }
-
-    if (!signupSession) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await completePhoneRegistration(signupSession, otpValue);
-      safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
-      toast.success("Account created");
-      navigateAfterSignupSuccess(router);
-    } catch (submitError) {
-      setError(
-        getApiErrorMessage(submitError, "Could not complete registration."),
-      );
-      focusIndex(0);
-    } finally {
-      setIsSubmitting(false);
-    }
+    await submitOtp(otpValue);
   };
 
   const onResend = useCallback(async () => {
@@ -169,7 +126,7 @@ export function SignupOtpForm() {
       setDigits(createDefaultOtpDigits(OTP_LENGTH));
       setError(null);
       setSecondsLeft(RESEND_COOLDOWN_SECONDS);
-      focusIndex(0);
+      otpRef.current?.focus(0);
       toast.success("OTP sent again");
     } catch (resendError) {
       toast.error(
@@ -182,7 +139,9 @@ export function SignupOtpForm() {
 
   if (phoneLabel === null) {
     return (
-      <div className="py-8 text-center text-sm text-[#64748B]">Loading…</div>
+      <div className="py-10 text-center text-sm text-sportxo-text-muted">
+        Loading…
+      </div>
     );
   }
 
@@ -190,65 +149,36 @@ export function SignupOtpForm() {
 
   return (
     <div className="space-y-6">
-      <p className="text-center text-sm leading-relaxed text-[#64748B]">
-        We sent a 4-digit code to{" "}
+      <p className="text-center text-sm leading-relaxed text-sportxo-text-muted sm:text-[0.9375rem]">
+        Enter the 4-digit code sent to{" "}
         <span className="font-semibold text-sportxo-navy">{phoneLabel}</span>
       </p>
 
       <form onSubmit={onSubmit} className="space-y-6" noValidate>
-        <div className="space-y-3">
-          <Label className="text-[0.8125rem] font-medium text-[#64748B]">
-            Enter OTP
-          </Label>
-          <div
-            className="flex justify-center gap-2.5 sm:gap-3"
-            role="group"
-            aria-label="One-time password digits"
-          >
-            {digits.map((digit, index) => (
-              <input
-                key={index}
-                ref={(el) => {
-                  inputRefs.current[index] = el;
-                }}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete={index === 0 ? "one-time-code" : "off"}
-                maxLength={1}
-                value={digit}
-                aria-label={`Digit ${index + 1} of ${OTP_LENGTH}`}
-                onChange={(event) => updateDigit(index, event.target.value)}
-                onKeyDown={(event) => handleKeyDown(index, event)}
-                onPaste={handlePaste}
-                className={cn(
-                  "size-12 min-w-0 flex-1 max-w-[3.75rem] rounded-2xl border bg-[#F1F5F9] text-center text-lg font-bold text-sportxo-navy outline-none transition-colors sm:size-14 sm:text-xl",
-                  "border-transparent focus:border-sportxo-blue focus:bg-sportxo-white focus:ring-2 focus:ring-sportxo-blue/20",
-                  error &&
-                    "border-red-400 focus:border-red-500 focus:ring-red-500/20",
-                )}
-              />
-            ))}
-          </div>
+        <div className="space-y-4">
+          <OtpInputGroup
+            ref={otpRef}
+            value={digits}
+            onChange={(next) => {
+              setDigits(next);
+              setError(null);
+            }}
+            onComplete={(code) => void submitOtp(code)}
+            error={Boolean(error)}
+            disabled={isSubmitting}
+          />
           <FieldError message={error ?? undefined} />
-          <p className="text-center text-xs text-[#64748B]">
-            Dev default OTP: <span className="font-semibold">{DEFAULT_OTP}</span>
+          <p className="text-center text-xs text-sportxo-text-muted">
+            Default OTP: <span className="font-semibold text-sportxo-navy">{DEFAULT_OTP}</span>
           </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={cn(
-            "inline-flex h-12 w-full items-center justify-center rounded-full bg-sportxo-blue text-sm font-bold text-white transition-colors",
-            "hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sportxo-blue/30 disabled:opacity-60",
-          )}
-        >
+        <AuthPrimaryButton type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Creating account…" : "Verify & Create Account"}
-        </button>
+        </AuthPrimaryButton>
       </form>
 
-      <div className="space-y-3 text-center text-sm text-[#64748B]">
+      <div className="space-y-3 text-center text-sm text-sportxo-text-muted">
         <p>
           {canResend ? (
             <>
@@ -263,7 +193,7 @@ export function SignupOtpForm() {
             </>
           ) : (
             <>
-              Resend OTP in{" "}
+              Resend in{" "}
               <span className="font-semibold tabular-nums text-sportxo-navy">
                 {formatCountdown(secondsLeft)}
               </span>
@@ -276,7 +206,7 @@ export function SignupOtpForm() {
             href="/signup"
             className="font-bold text-sportxo-blue transition-colors hover:text-[#1d4ed8]"
           >
-            Change Phone Number
+            Change phone number
           </Link>
         </p>
       </div>

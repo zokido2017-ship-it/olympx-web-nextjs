@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { LoginCard } from "@/components/auth/login-card";
-import { LoginCardHeader } from "@/components/auth/login-card-header";
+import { AuthEntryHeader } from "@/components/auth/auth-entry-header";
+import { AuthFormCard } from "@/components/auth/auth-form-card";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { SignupPhoneForm } from "@/components/auth/signup-phone-form";
 
 export const metadata: Metadata = {
@@ -10,16 +11,14 @@ export const metadata: Metadata = {
 
 export default function SignupPhonePage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-sportxo-page px-6 py-12">
-      <LoginCard>
-        <LoginCardHeader
-          title="Almost there"
-          subtitle="Add your phone number to finish creating your account."
+    <AuthShell>
+      <AuthFormCard>
+        <AuthEntryHeader
+          title="Add your phone"
+          subtitle="We received your Google account. Add a mobile number to finish registration."
         />
-        <div className="px-8 pb-8 pt-2">
-          <SignupPhoneForm />
-        </div>
-      </LoginCard>
-    </main>
+        <SignupPhoneForm />
+      </AuthFormCard>
+    </AuthShell>
   );
 }

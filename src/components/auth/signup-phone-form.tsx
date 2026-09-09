@@ -12,6 +12,7 @@ import {
   type PhoneSignupFormValues,
   type SignupSession,
 } from "@/types/auth";
+import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
 import { FieldError } from "@/components/ui/field-error";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -22,7 +23,6 @@ import {
   safeSessionSetItem,
 } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
-import { cn } from "@/lib/cn";
 
 export function SignupPhoneForm() {
   const router = useRouter();
@@ -98,38 +98,34 @@ export function SignupPhoneForm() {
 
   if (!sessionReady) {
     return (
-      <div className="py-8 text-center text-sm text-[#64748B]">Loading…</div>
+      <div className="py-10 text-center text-sm text-sportxo-text-muted">Loading…</div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <header className="space-y-2 text-center">
-        <h2 className="text-lg font-bold text-sportxo-navy">Add your phone number</h2>
-        <p className="text-sm leading-relaxed text-[#64748B]">
-          Signed in as{" "}
-          <span className="font-semibold text-sportxo-navy">{googleName}</span>
-          {googleEmail ? (
-            <>
-              {" "}
-              (<span className="font-medium">{googleEmail}</span>)
-            </>
-          ) : null}
-          . We need your mobile number to complete registration.
-        </p>
-      </header>
+      <div className="rounded-2xl border border-sportxo-border/80 bg-[#F8FAFC] px-4 py-3 text-center text-sm text-sportxo-text-muted">
+        Signed in as{" "}
+        <span className="font-semibold text-sportxo-navy">{googleName}</span>
+        {googleEmail ? (
+          <>
+            {" "}
+            (<span className="font-medium">{googleEmail}</span>)
+          </>
+        ) : null}
+      </div>
 
       <form onSubmit={onSubmit} className="space-y-5" noValidate>
         <div className="space-y-2">
           <Label
             htmlFor="googleSignupPhone"
-            className="text-[0.8125rem] font-medium text-[#64748B]"
+            className="text-[0.8125rem] font-medium text-sportxo-text-muted"
           >
-            Phone Number
+            Phone number
           </Label>
           <PhoneInput
             id="googleSignupPhone"
-            placeholder="Phone number"
+            placeholder="Enter mobile number"
             error={!!errors.phoneNumber}
             countryCode={countryField.field.value}
             onCountryCodeChange={countryField.field.onChange}
@@ -138,19 +134,12 @@ export function SignupPhoneForm() {
           <FieldError message={errors.phoneNumber?.message} />
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={cn(
-            "inline-flex h-12 w-full items-center justify-center rounded-full bg-sportxo-blue text-sm font-bold text-white transition-colors",
-            "hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sportxo-blue/30 disabled:opacity-60",
-          )}
-        >
+        <AuthPrimaryButton type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Sending…" : "Send OTP"}
-        </button>
+        </AuthPrimaryButton>
       </form>
 
-      <p className="text-center text-sm text-[#64748B]">
+      <p className="text-center text-sm text-sportxo-text-muted">
         <Link
           href="/signup"
           className="font-bold text-sportxo-blue hover:text-[#1d4ed8]"

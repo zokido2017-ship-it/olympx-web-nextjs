@@ -1,16 +1,15 @@
-import { LoginCard } from "@/components/auth/login-card";
-import { LoginCardHeader } from "@/components/auth/login-card-header";
+import { AuthEntryHeader } from "@/components/auth/auth-entry-header";
+import { AuthFormCard } from "@/components/auth/auth-form-card";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/auth/login-form";
 
 export function LoginScreen() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-sportxo-page px-6 py-12">
-      <LoginCard>
-        <LoginCardHeader />
-        <div className="px-8 pb-8 pt-2">
-          <LoginForm />
-        </div>
-      </LoginCard>
-    </main>
+    <AuthShell>
+      <AuthFormCard>
+        <AuthEntryHeader />
+        <LoginForm />
+      </AuthFormCard>
+    </AuthShell>
   );
 }

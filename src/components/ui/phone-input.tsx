@@ -67,8 +67,8 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
       <div ref={rootRef} className="relative">
         <div
           className={cn(
-            "flex h-12 w-full items-center overflow-hidden rounded-full border bg-[#F3F5F9] transition-colors",
-            "border-transparent focus-within:border-sportxo-blue/30 focus-within:bg-sportxo-white focus-within:ring-2 focus-within:ring-sportxo-blue/15",
+            "flex h-12 min-h-[3rem] w-full items-center overflow-hidden rounded-full border bg-[#F8FAFC] transition-all",
+            "border-sportxo-border/80 focus-within:border-sportxo-blue/40 focus-within:bg-white focus-within:ring-4 focus-within:ring-sportxo-blue/10",
             error &&
               "border-red-500 focus-within:border-red-500 focus-within:ring-red-500/15",
             className,

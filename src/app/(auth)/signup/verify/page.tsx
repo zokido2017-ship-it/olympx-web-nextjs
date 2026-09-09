@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { LoginCard } from "@/components/auth/login-card";
-import { LoginCardHeader } from "@/components/auth/login-card-header";
+import { AuthEntryHeader } from "@/components/auth/auth-entry-header";
+import { AuthFormCard } from "@/components/auth/auth-form-card";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { SignupOtpForm } from "@/components/auth/signup-otp-form";
 
 export const metadata: Metadata = {
@@ -10,16 +11,14 @@ export const metadata: Metadata = {
 
 export default function SignupVerifyPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-sportxo-page px-6 py-12">
-      <LoginCard>
-        <LoginCardHeader
-          title="Verify phone"
-          subtitle="Enter the code we sent to your mobile number."
+    <AuthShell>
+      <AuthFormCard>
+        <AuthEntryHeader
+          title="Verify your number"
+          subtitle="Step 2 of 2 — confirm the code we sent to your phone."
         />
-        <div className="px-8 pb-8 pt-2">
-          <SignupOtpForm />
-        </div>
-      </LoginCard>
-    </main>
+        <SignupOtpForm />
+      </AuthFormCard>
+    </AuthShell>
   );
 }

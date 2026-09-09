@@ -6,6 +6,8 @@ import { useForm, useController } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { SignupGoogleButton } from "@/components/auth/signup-google-button";
+import { AuthDivider } from "@/components/auth/auth-divider";
+import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
 import {
   phoneSignupSchema,
   SIGNUP_SESSION_STORAGE_KEY,
@@ -19,7 +21,6 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
 import { safeSessionSetItem } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
-import { cn } from "@/lib/cn";
 
 export function SignupForm() {
   const router = useRouter();
@@ -69,24 +70,19 @@ export function SignupForm() {
     <div className="space-y-5">
       <SignupGoogleButton />
 
-      <div className="relative py-1 text-center">
-        <span className="relative z-10 bg-sportxo-white px-3 text-[11px] font-medium uppercase tracking-[0.22em] text-[#64748B]">
-          or
-        </span>
-        <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-[#E2E8F0]" />
-      </div>
+      <AuthDivider />
 
       <form onSubmit={onPhoneSubmit} className="space-y-5" noValidate>
         <div className="space-y-2">
           <Label
             htmlFor="signupPhoneNumber"
-            className="text-[0.8125rem] font-medium text-[#64748B]"
+            className="text-[0.8125rem] font-medium text-sportxo-text-muted"
           >
-            Phone Number
+            Phone number
           </Label>
           <PhoneInput
             id="signupPhoneNumber"
-            placeholder="Phone number"
+            placeholder="Enter mobile number"
             error={!!errors.phoneNumber}
             countryCode={countryField.field.value}
             onCountryCodeChange={countryField.field.onChange}
@@ -95,19 +91,12 @@ export function SignupForm() {
           <FieldError message={errors.phoneNumber?.message} />
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={cn(
-            "inline-flex h-12 w-full items-center justify-center rounded-full bg-sportxo-blue text-sm font-bold text-white transition-colors",
-            "hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sportxo-blue/30 disabled:opacity-60",
-          )}
-        >
-          {isSubmitting ? "Sending…" : "Continue with Phone"}
-        </button>
+        <AuthPrimaryButton type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Sending…" : "Continue"}
+        </AuthPrimaryButton>
       </form>
 
-      <p className="pt-1 text-center text-sm text-[#64748B]">
+      <p className="text-center text-sm text-sportxo-text-muted">
         Already have an account?{" "}
         <Link
           href="/login"

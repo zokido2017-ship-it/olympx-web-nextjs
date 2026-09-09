@@ -20,7 +20,8 @@ export function GoogleSignInButton({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-[#E2E8F0] bg-sportxo-white text-sm font-semibold text-sportxo-navy transition-colors hover:bg-[#F8FAFC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sportxo-blue/20",
+        "inline-flex h-12 min-h-[3rem] w-full items-center justify-center gap-2.5 rounded-full border border-sportxo-border bg-white text-sm font-semibold text-sportxo-navy shadow-sportxo-soft transition-all",
+        "hover:border-sportxo-blue/25 hover:bg-[#F8FAFC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sportxo-blue/20 active:scale-[0.99]",
         className,
       )}
     >
