@@ -60,7 +60,7 @@ export const OtpInputGroup = forwardRef<OtpInputGroupHandle, OtpInputGroupProps>
 
     return (
       <div
-        className={cn("flex justify-center gap-2 sm:gap-3", className)}
+        className={cn("flex w-full max-w-full justify-between gap-1.5 sm:justify-center sm:gap-3", className)}
         role="group"
         aria-label="One-time password digits"
       >
@@ -104,7 +104,7 @@ export const OtpInputGroup = forwardRef<OtpInputGroupHandle, OtpInputGroupProps>
               }
             }}
             className={cn(
-              "size-14 min-w-0 flex-1 max-w-[4.25rem] rounded-2xl border-2 bg-[#F8FAFC] text-center text-xl font-bold text-sportxo-navy outline-none transition-all sm:size-16 sm:max-w-[4.75rem] sm:text-2xl",
+              "size-12 min-w-0 flex-1 max-w-[3.25rem] rounded-xl border-2 bg-[#F8FAFC] text-center text-lg font-bold text-sportxo-navy outline-none transition-all sm:size-14 sm:max-w-[4.25rem] sm:rounded-2xl sm:text-xl lg:size-16 lg:max-w-[4.75rem] lg:text-2xl",
               "border-transparent focus:border-sportxo-blue focus:bg-white focus:ring-4 focus:ring-sportxo-blue/15",
               error && "border-red-400 focus:border-red-500 focus:ring-red-500/15",
               disabled && "opacity-60",

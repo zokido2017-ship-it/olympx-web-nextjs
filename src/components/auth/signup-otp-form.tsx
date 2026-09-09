@@ -148,13 +148,13 @@ export function SignupOtpForm() {
   const canResend = secondsLeft <= 0 && !isResending;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       <p className="text-center text-sm leading-relaxed text-sportxo-text-muted sm:text-[0.9375rem]">
         Enter the 4-digit code sent to{" "}
         <span className="font-semibold text-sportxo-navy">{phoneLabel}</span>
       </p>
 
-      <form onSubmit={onSubmit} className="space-y-6" noValidate>
+      <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5" noValidate>
         <div className="space-y-4">
           <OtpInputGroup
             ref={otpRef}

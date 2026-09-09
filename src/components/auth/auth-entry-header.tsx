@@ -13,11 +13,11 @@ export function AuthEntryHeader({
   className,
 }: AuthEntryHeaderProps) {
   return (
-    <header className={cn("mb-8 text-center lg:mb-10 lg:text-left", className)}>
-      <div className="mb-6 flex justify-center lg:justify-start">
+    <header className={cn("mb-5 text-center lg:mb-10 lg:text-left", className)}>
+      <div className="mb-4 flex justify-center lg:mb-6 lg:justify-start">
         <SportxoLogo />
       </div>
-      <h1 className="text-2xl font-bold tracking-tight text-sportxo-navy sm:text-[1.75rem]">
+      <h1 className="text-xl font-bold tracking-tight text-sportxo-navy sm:text-2xl lg:text-[1.75rem]">
         {title}
       </h1>
       {subtitle ? (

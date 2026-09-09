@@ -6,16 +6,17 @@ type AuthShellProps = {
   className?: string;
 };
 
-/** Responsive auth layout — brand panel on desktop, focused card on mobile. */
+/** Responsive auth layout — compact top-aligned on mobile, centered on desktop. */
 export function AuthShell({ children, className }: AuthShellProps) {
   return (
-    <div className="min-h-dvh bg-sportxo-page">
-      <div className="mx-auto flex min-h-dvh w-full max-w-[1440px] flex-col lg:grid lg:grid-cols-2">
+    <div className="overflow-x-hidden bg-sportxo-page">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col lg:grid lg:min-h-dvh lg:grid-cols-2">
         <AuthBrandPanel />
 
         <main
           className={cn(
-            "flex flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12 lg:px-10 lg:py-16",
+            "flex w-full flex-col items-center px-4 pb-4 pt-5 sm:px-6 sm:pt-6",
+            "lg:flex-1 lg:justify-center lg:px-10 lg:py-16",
             className,
           )}
         >

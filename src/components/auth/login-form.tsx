@@ -66,12 +66,12 @@ export function LoginForm() {
   });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <SignupGoogleButton />
 
       <AuthDivider />
 
-      <form onSubmit={onSubmit} className="space-y-5" noValidate>
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <div className="space-y-2">
           <Label
             htmlFor="phoneNumber"
