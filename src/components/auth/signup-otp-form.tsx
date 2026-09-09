@@ -12,17 +12,18 @@ import {
   type KeyboardEvent,
 } from "react";
 import { toast } from "sonner";
-import { LOGIN_PHONE_STORAGE_KEY, type StoredLoginPhone } from "@/types/auth";
-import { getApiErrorMessage } from "@/lib/api/errors";
+import {
+  SIGNUP_SESSION_STORAGE_KEY,
+  type SignupSession,
+} from "@/types/auth";
 import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
-import { navigateAfterAuthSuccess } from "@/lib/auth-navigation";
-import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
-import { verifyOtpWithDevBypass } from "@/lib/verify-otp";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   safeSessionGetItem,
   safeSessionRemoveItem,
 } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
+import { completePhoneRegistration } from "@/services/registration.service";
 import { FieldError } from "@/components/ui/field-error";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/cn";
@@ -36,7 +37,7 @@ function formatCountdown(totalSeconds: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export function OtpVerificationForm() {
+export function SignupOtpForm() {
   const router = useRouter();
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [digits, setDigits] = useState<string[]>(() =>
@@ -45,38 +46,27 @@ export function OtpVerificationForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneLabel, setPhoneLabel] = useState<string | null>(null);
-  const [phonePayload, setPhonePayload] = useState<{
-    phone_code: string;
-    mobile_number: string;
-  } | null>(null);
+  const [signupSession, setSignupSession] = useState<SignupSession | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_COOLDOWN_SECONDS);
   const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
-    const raw = safeSessionGetItem(LOGIN_PHONE_STORAGE_KEY);
+    const raw = safeSessionGetItem(SIGNUP_SESSION_STORAGE_KEY);
     if (!raw) {
-      router.replace("/login");
+      router.replace("/signup");
       return;
     }
-    try {
-      const parsed = JSON.parse(raw) as StoredLoginPhone & {
-        phone_code?: string;
-        mobile_number?: string;
-      };
-      const phone_code =
-        parsed.phone_code ?? dialCodeToPhoneCode(parsed.countryCode);
-      const mobile_number =
-        parsed.mobile_number ?? normalizeMobileNumber(parsed.phoneNumber);
 
-      if (!phone_code || !mobile_number) {
-        router.replace("/login");
+    try {
+      const session = JSON.parse(raw) as SignupSession;
+      if (!session.phone_code || !session.mobile_number) {
+        router.replace("/signup");
         return;
       }
-
-      setPhonePayload({ phone_code, mobile_number });
-      setPhoneLabel(`${parsed.countryCode} ${parsed.phoneNumber}`);
+      setSignupSession(session);
+      setPhoneLabel(`${session.countryCode} ${session.phoneNumber}`);
     } catch {
-      router.replace("/login");
+      router.replace("/signup");
     }
   }, [router]);
 
@@ -112,9 +102,7 @@ export function OtpVerificationForm() {
     event: KeyboardEvent<HTMLInputElement>,
   ) => {
     if (event.key !== "Backspace") return;
-
     if (digits[index]) return;
-
     if (index > 0) {
       event.preventDefault();
       setDigits((prev) => {
@@ -137,8 +125,7 @@ export function OtpVerificationForm() {
     const next = Array.from({ length: OTP_LENGTH }, (_, i) => pasted[i] ?? "");
     setDigits(next);
     setError(null);
-    const focusTarget = Math.min(pasted.length, OTP_LENGTH - 1);
-    focusIndex(focusTarget);
+    focusIndex(Math.min(pasted.length, OTP_LENGTH - 1));
   };
 
   const onSubmit = async (event: FormEvent) => {
@@ -149,22 +136,20 @@ export function OtpVerificationForm() {
       return;
     }
 
-    if (!phonePayload) {
+    if (!signupSession) {
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await verifyOtpWithDevBypass({
-        ...phonePayload,
-        otp: otpValue,
-      });
-
-      safeSessionRemoveItem(LOGIN_PHONE_STORAGE_KEY);
-      toast.success("Verified successfully");
-      navigateAfterAuthSuccess(router);
-    } catch (error) {
-      setError(getApiErrorMessage(error, "Invalid OTP. Please try again."));
+      await completePhoneRegistration(signupSession, otpValue);
+      safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
+      toast.success("Account created");
+      router.push("/signup/role");
+    } catch (submitError) {
+      setError(
+        getApiErrorMessage(submitError, "Could not complete registration."),
+      );
       focusIndex(0);
     } finally {
       setIsSubmitting(false);
@@ -172,28 +157,31 @@ export function OtpVerificationForm() {
   };
 
   const onResend = useCallback(async () => {
-    if (secondsLeft > 0 || isResending || !phonePayload) return;
+    if (secondsLeft > 0 || isResending || !signupSession) return;
 
     setIsResending(true);
     try {
-      await sendOtp(phonePayload);
+      await sendOtp({
+        phone_code: signupSession.phone_code,
+        mobile_number: signupSession.mobile_number,
+      });
       setDigits(createDefaultOtpDigits(OTP_LENGTH));
       setError(null);
       setSecondsLeft(RESEND_COOLDOWN_SECONDS);
       focusIndex(0);
       toast.success("OTP sent again");
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not resend OTP. Please try again."));
+    } catch (resendError) {
+      toast.error(
+        getApiErrorMessage(resendError, "Could not resend OTP. Please try again."),
+      );
     } finally {
       setIsResending(false);
     }
-  }, [isResending, phonePayload, secondsLeft]);
+  }, [isResending, secondsLeft, signupSession]);
 
   if (phoneLabel === null) {
     return (
-      <div className="py-8 text-center text-sm text-[#64748B]">
-        Loading…
-      </div>
+      <div className="py-8 text-center text-sm text-[#64748B]">Loading…</div>
     );
   }
 
@@ -255,7 +243,7 @@ export function OtpVerificationForm() {
             "hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sportxo-blue/30 disabled:opacity-60",
           )}
         >
-          {isSubmitting ? "Verifying…" : "Verify OTP"}
+          {isSubmitting ? "Creating account…" : "Verify & Create Account"}
         </button>
       </form>
 
@@ -284,7 +272,7 @@ export function OtpVerificationForm() {
 
         <p>
           <Link
-            href="/login"
+            href="/signup"
             className="font-bold text-sportxo-blue transition-colors hover:text-[#1d4ed8]"
           >
             Change Phone Number

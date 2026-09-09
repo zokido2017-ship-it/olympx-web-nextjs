@@ -21,7 +21,7 @@ export const BYPASS_PLAYER_PROFILE_ROUTE_GUARD = true;
  * UI dev: "Sign up" on login goes straight to `/player-profile` (skip `/signup`).
  * Set to `false` when the register page and APIs are ready.
  */
-export const BYPASS_SIGNUP_REGISTRATION = true;
+export const BYPASS_SIGNUP_REGISTRATION = false;
 
 /** Login footer "Sign up" target — register page or player profile (when bypassing). */
 export function getSignupEntryPath(): string {

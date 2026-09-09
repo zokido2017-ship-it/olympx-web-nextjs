@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
+import { GoogleOAuthProviderWrapper } from "@/components/providers/google-oauth-provider";
 import "@/styles/globals.css";
 
 const inter = Inter({
@@ -30,7 +31,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full font-sans" suppressHydrationWarning>
-        {children}
+        <GoogleOAuthProviderWrapper>{children}</GoogleOAuthProviderWrapper>
         <Toaster
           position="top-center"
           toastOptions={{
