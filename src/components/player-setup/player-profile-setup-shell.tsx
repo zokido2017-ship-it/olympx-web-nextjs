@@ -8,15 +8,15 @@ export function PlayerProfileSetupShell({
   children,
 }: PlayerProfileSetupShellProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-sportxo-page">
+    <div className="flex min-h-0 flex-col overflow-x-hidden bg-sportxo-page md:min-h-dvh">
       <header className="shrink-0 border-b border-sportxo-border/80 bg-sportxo-white">
-        <div className="flex h-16 items-center px-6 md:px-8">
+        <div className="flex h-14 items-center px-4 sm:h-16 sm:px-6 md:px-8">
           <SportxoLogo />
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col">
-        <div className="mx-auto flex w-full max-w-[min(100%,90rem)] min-h-0 flex-1 flex-col px-4 py-4 md:px-8 md:py-6">
+      <main className="flex flex-col md:min-h-0 md:flex-1">
+        <div className="mx-auto w-full max-w-[min(100%,90rem)] px-3 py-3 sm:px-4 sm:py-4 md:px-8 md:py-6">
           {children}
         </div>
       </main>

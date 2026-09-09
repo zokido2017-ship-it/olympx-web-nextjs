@@ -14,7 +14,7 @@ export function PlayerProfileWizardStepper({
   const progress = (currentStep / WIZARD_STEP_COUNT) * 100;
 
   return (
-    <div className="shrink-0 space-y-3">
+    <div className="shrink-0 space-y-2 sm:space-y-3">
       <p className="text-sm font-medium text-sportxo-navy">
         Step {currentStep} of {WIZARD_STEP_COUNT}
       </p>

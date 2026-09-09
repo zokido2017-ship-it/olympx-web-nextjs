@@ -15,11 +15,8 @@ import { SportsInformationSection } from "@/components/player-setup/sports-infor
 import { DASHBOARD_PATH, markPlayerProfileComplete } from "@/lib/auth-session";
 import { cn } from "@/lib/cn";
 
-/** Shared on every step — changing these causes CLS between steps. */
 const WIZARD_BODY_PADDING =
-  "px-5 py-6 sm:px-8 md:px-10 lg:px-12 xl:px-14";
-
-const WIZARD_CARD_HEIGHT = "h-[min(calc(100dvh-7rem),900px)]";
+  "px-4 py-4 sm:px-8 sm:py-6 md:px-10 lg:px-12 xl:px-14";
 
 const initialConnections: Record<FitnessProvider, FitnessConnectionStatus> = {
   apple: "connected",
@@ -117,27 +114,28 @@ export function PlayerProfileWizard({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col bg-gradient-to-br from-[#EEF4FF] via-[#F5F7FB] to-[#E8F0FE] p-2 sm:p-3 md:p-4 lg:p-5">
+    <div className="flex flex-col">
+      <div className="flex flex-col sm:p-2 md:p-4 lg:p-5">
         <div
           className={cn(
-            "mx-auto grid w-full max-w-none grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[20px] border border-white/70 bg-white/85 shadow-[0_24px_80px_-32px_rgb(11_31_58_/_0.28)] backdrop-blur-sm",
-            WIZARD_CARD_HEIGHT,
+            "mx-auto grid w-full max-w-none grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-white/70 bg-white/95 shadow-sportxo-card sm:rounded-[20px] sm:shadow-[0_24px_80px_-32px_rgb(11_31_58_/_0.28)] sm:backdrop-blur-sm",
+            "md:h-[min(calc(100dvh-8rem),900px)]",
           )}
         >
-          <div className="shrink-0 border-b border-[#EEF2F7] px-5 py-4 sm:px-8 md:px-10 lg:px-12 xl:px-14 md:py-5">
+          <div className="shrink-0 border-b border-[#EEF2F7] px-4 py-3 sm:px-8 sm:py-4 md:px-10 md:py-5 lg:px-12 xl:px-14">
             <PlayerProfileWizardStepper currentStep={step} />
           </div>
 
-          <div className="relative min-h-0 overflow-hidden">
+          <div className="relative min-h-0 md:overflow-hidden">
             <div
               ref={scrollRef}
               className={cn(
-                "absolute inset-0 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:thin]",
+                "md:absolute md:inset-0 md:overflow-y-auto",
+                "[-ms-overflow-style:none] [scrollbar-width:thin]",
                 WIZARD_BODY_PADDING,
               )}
             >
-              <div className="relative w-full pb-2">
+              <div className="relative w-full">
                 <WizardStepPanel active={step === 1}>
                   <PersonalInformationSection
                     wizardMode

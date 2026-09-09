@@ -74,7 +74,7 @@ function WizardPhotoUpload() {
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
         className={cn(
-          "relative flex size-[120px] flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-colors duration-200",
+          "relative flex size-[96px] flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-colors duration-200 sm:size-[112px]",
           isDragging
             ? "border-sportxo-blue bg-[#EFF6FF]"
             : "border-[#CBD5E1] bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9] hover:border-sportxo-blue/45 hover:bg-[#F8FAFC]",
@@ -137,10 +137,10 @@ export function PersonalInformationSection({
 
   if (wizardMode) {
     return (
-      <div className="w-full max-w-none space-y-8 pb-1 pt-1">
+      <div className="w-full max-w-none space-y-5 sm:space-y-6">
         <WizardPhotoUpload />
 
-        <div className="flex w-full flex-col space-y-5">
+        <div className="flex w-full flex-col space-y-4">
           <div className="w-full space-y-2">
             <Label htmlFor="fullName" className={wizardLabelClass}>
               Full Name
