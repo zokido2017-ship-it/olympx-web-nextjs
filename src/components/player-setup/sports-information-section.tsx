@@ -9,7 +9,10 @@ import {
   type SportCategory,
 } from "@/constants/sports-catalog";
 import { SetupSectionCard } from "@/components/player-setup/setup-section-card";
-import { SportSelectChip } from "@/components/player-setup/sport-select-chip";
+import {
+  getSportChipGridClassName,
+  SportSelectChip,
+} from "@/components/player-setup/sport-select-chip";
 import { SportAssetIcon } from "@/components/player-setup/sport-asset-icon";
 import { cn } from "@/lib/cn";
 
@@ -99,7 +102,7 @@ export function SportsInformationSection({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className={getSportChipGridClassName(group.category)}>
                 {group.sports.map((sport) => (
                   <SportSelectChip
                     key={sport.id}

@@ -137,11 +137,11 @@ export function PersonalInformationSection({
 
   if (wizardMode) {
     return (
-      <div className="w-full max-w-none space-y-5 sm:space-y-6">
+      <div className="w-full min-w-0 max-w-none space-y-5 sm:space-y-6">
         <WizardPhotoUpload />
 
-        <div className="flex w-full flex-col space-y-4">
-          <div className="w-full space-y-2">
+        <div className="flex w-full min-w-0 flex-col space-y-4">
+          <div className="w-full min-w-0 space-y-2">
             <Label htmlFor="fullName" className={wizardLabelClass}>
               Full Name
             </Label>

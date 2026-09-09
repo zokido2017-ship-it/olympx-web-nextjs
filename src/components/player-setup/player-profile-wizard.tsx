@@ -35,20 +35,9 @@ function WizardStepPanel({
   active: boolean;
   children: React.ReactNode;
 }) {
-  return (
-    <div
-      className={cn(
-        "w-full transition-opacity duration-200 ease-out motion-reduce:transition-none",
-        active
-          ? "relative z-10 opacity-100"
-          : "pointer-events-none absolute inset-x-0 top-0 z-0 opacity-0",
-      )}
-      aria-hidden={!active}
-      inert={!active}
-    >
-      {children}
-    </div>
-  );
+  if (!active) return null;
+
+  return <div className="w-full">{children}</div>;
 }
 
 export function PlayerProfileWizard({
@@ -118,15 +107,15 @@ export function PlayerProfileWizard({
       <div className="flex flex-col sm:p-2 md:p-4 lg:p-5">
         <div
           className={cn(
-            "mx-auto grid w-full max-w-none grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-white/70 bg-white/95 shadow-sportxo-card sm:rounded-[20px] sm:shadow-[0_24px_80px_-32px_rgb(11_31_58_/_0.28)] sm:backdrop-blur-sm",
-            "md:h-[min(calc(100dvh-8rem),900px)]",
+            "mx-auto flex w-full max-w-none flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/95 shadow-sportxo-card sm:rounded-[20px] sm:shadow-[0_24px_80px_-32px_rgb(11_31_58_/_0.28)] sm:backdrop-blur-sm",
+            "md:grid md:h-[min(calc(100dvh-8rem),900px)] md:grid-rows-[auto_1fr_auto]",
           )}
         >
           <div className="shrink-0 border-b border-[#EEF2F7] px-4 py-3 sm:px-8 sm:py-4 md:px-10 md:py-5 lg:px-12 xl:px-14">
             <PlayerProfileWizardStepper currentStep={step} />
           </div>
 
-          <div className="relative min-h-0 md:overflow-hidden">
+          <div className="relative min-h-0 overflow-hidden">
             <div
               ref={scrollRef}
               className={cn(
@@ -135,7 +124,7 @@ export function PlayerProfileWizard({
                 WIZARD_BODY_PADDING,
               )}
             >
-              <div className="relative w-full">
+              <div className="relative w-full min-w-0">
                 <WizardStepPanel active={step === 1}>
                   <PersonalInformationSection
                     wizardMode

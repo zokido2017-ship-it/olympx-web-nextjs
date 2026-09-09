@@ -67,13 +67,13 @@ export function SignupForm() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 space-y-4">
       <SignupGoogleButton />
 
       <AuthDivider />
 
-      <form onSubmit={onPhoneSubmit} className="space-y-4" noValidate>
-        <div className="space-y-2">
+      <form onSubmit={onPhoneSubmit} className="w-full min-w-0 space-y-4" noValidate>
+        <div className="w-full min-w-0 space-y-2">
           <Label
             htmlFor="signupPhoneNumber"
             className="text-[0.8125rem] font-medium text-sportxo-text-muted"

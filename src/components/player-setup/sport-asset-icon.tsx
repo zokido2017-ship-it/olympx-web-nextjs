@@ -33,7 +33,8 @@ export function SportAssetIcon({
         height={innerSize}
         unoptimized
         draggable={false}
-        className="pointer-events-none block max-h-full max-w-full object-contain object-center"
+        sizes={`${innerSize}px`}
+        className="pointer-events-none block h-auto w-auto max-h-full max-w-full object-contain object-center"
       />
     </span>
   );

@@ -13,7 +13,7 @@ export function AuthEntryHeader({
   className,
 }: AuthEntryHeaderProps) {
   return (
-    <header className={cn("mb-5 text-center lg:mb-10 lg:text-left", className)}>
+    <header className={cn("mb-4 text-center sm:mb-5 lg:mb-10 lg:text-left", className)}>
       <div className="mb-4 flex justify-center lg:mb-6 lg:justify-start">
         <SportxoLogo />
       </div>
