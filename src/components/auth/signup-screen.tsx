@@ -8,7 +8,7 @@ export function SignupScreen() {
       <LoginCard>
         <LoginCardHeader
           title="Create account"
-          subtitle="Log in or create account to join the Sportxo ecosystem."
+          subtitle="One account for Sportxo. Set up your profile, then create teams or organisations from the dashboard."
         />
         <div className="px-8 pb-8 pt-2">
           <SignupForm />

@@ -18,6 +18,7 @@ import {
 } from "@/types/auth";
 import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { navigateAfterSignupSuccess } from "@/lib/auth-navigation";
 import {
   safeSessionGetItem,
   safeSessionRemoveItem,
@@ -145,7 +146,7 @@ export function SignupOtpForm() {
       await completePhoneRegistration(signupSession, otpValue);
       safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
       toast.success("Account created");
-      router.push("/signup/role");
+      navigateAfterSignupSuccess(router);
     } catch (submitError) {
       setError(
         getApiErrorMessage(submitError, "Could not complete registration."),

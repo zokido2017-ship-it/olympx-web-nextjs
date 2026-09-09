@@ -64,7 +64,10 @@ export function navigateAfterAuthSuccess(router: ClientAuthRouter): void {
   router.push(getPostLoginPath());
 }
 
-/** After signup — always start the standalone player profile wizard. */
+/**
+ * After registration completes — every user starts as a player and sets up
+ * their profile. Teams and organisations are created later from the dashboard.
+ */
 export function navigateAfterSignupSuccess(router: ClientAuthRouter): void {
   markAuthenticated();
   clearPlayerProfileComplete();
