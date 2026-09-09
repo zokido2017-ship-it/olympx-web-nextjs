@@ -12,12 +12,20 @@ import {
   type KeyboardEvent,
 } from "react";
 import { toast } from "sonner";
-import { LOGIN_PHONE_STORAGE_KEY } from "@/types/auth";
+import { LOGIN_PHONE_STORAGE_KEY, type StoredLoginPhone } from "@/types/auth";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { navigateAfterAuthSuccess } from "@/lib/auth-navigation";
+import { markAuthenticated, setAuthToken } from "@/lib/auth-session";
+import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
 import {
   safeSessionGetItem,
   safeSessionRemoveItem,
 } from "@/lib/safe-storage";
+import {
+  extractAuthToken,
+  sendOtp,
+  validateOtp,
+} from "@/services/auth-api.service";
 import { FieldError } from "@/components/ui/field-error";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/cn";
@@ -40,6 +48,10 @@ export function OtpVerificationForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneLabel, setPhoneLabel] = useState<string | null>(null);
+  const [phonePayload, setPhonePayload] = useState<{
+    phone_code: string;
+    mobile_number: string;
+  } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_COOLDOWN_SECONDS);
   const [isResending, setIsResending] = useState(false);
 
@@ -50,11 +62,22 @@ export function OtpVerificationForm() {
       return;
     }
     try {
-      const { countryCode, phoneNumber } = JSON.parse(raw) as {
-        countryCode: string;
-        phoneNumber: string;
+      const parsed = JSON.parse(raw) as StoredLoginPhone & {
+        phone_code?: string;
+        mobile_number?: string;
       };
-      setPhoneLabel(`${countryCode} ${phoneNumber}`);
+      const phone_code =
+        parsed.phone_code ?? dialCodeToPhoneCode(parsed.countryCode);
+      const mobile_number =
+        parsed.mobile_number ?? normalizeMobileNumber(parsed.phoneNumber);
+
+      if (!phone_code || !mobile_number) {
+        router.replace("/login");
+        return;
+      }
+
+      setPhonePayload({ phone_code, mobile_number });
+      setPhoneLabel(`${parsed.countryCode} ${parsed.phoneNumber}`);
     } catch {
       router.replace("/login");
     }
@@ -129,26 +152,52 @@ export function OtpVerificationForm() {
       return;
     }
 
+    if (!phonePayload) {
+      return;
+    }
+
     setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setIsSubmitting(false);
-    safeSessionRemoveItem(LOGIN_PHONE_STORAGE_KEY);
-    toast.success("Verified successfully");
-    navigateAfterAuthSuccess(router);
+    try {
+      const response = await validateOtp({
+        ...phonePayload,
+        otp: otpValue,
+      });
+
+      const token = extractAuthToken(response);
+      if (token) {
+        setAuthToken(token);
+      } else {
+        markAuthenticated();
+      }
+
+      safeSessionRemoveItem(LOGIN_PHONE_STORAGE_KEY);
+      toast.success("Verified successfully");
+      navigateAfterAuthSuccess(router);
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Invalid OTP. Please try again."));
+      focusIndex(0);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const onResend = useCallback(async () => {
-    if (secondsLeft > 0 || isResending) return;
+    if (secondsLeft > 0 || isResending || !phonePayload) return;
 
     setIsResending(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setIsResending(false);
-    setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
-    setError(null);
-    setSecondsLeft(RESEND_COOLDOWN_SECONDS);
-    focusIndex(0);
-    toast.success("OTP sent again");
-  }, [isResending, secondsLeft]);
+    try {
+      await sendOtp(phonePayload);
+      setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
+      setError(null);
+      setSecondsLeft(RESEND_COOLDOWN_SECONDS);
+      focusIndex(0);
+      toast.success("OTP sent again");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not resend OTP. Please try again."));
+    } finally {
+      setIsResending(false);
+    }
+  }, [isResending, phonePayload, secondsLeft]);
 
   if (phoneLabel === null) {
     return (

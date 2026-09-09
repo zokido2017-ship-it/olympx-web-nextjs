@@ -16,10 +16,13 @@ import { FieldError } from "@/components/ui/field-error";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { cn } from "@/lib/cn";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   getSignupEntryPath,
 } from "@/lib/auth-navigation";
+import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
 import { safeSessionSetItem } from "@/lib/safe-storage";
+import { sendOtp } from "@/services/auth-api.service";
 
 export function LoginForm() {
   const router = useRouter();
@@ -39,17 +42,29 @@ export function LoginForm() {
   const countryField = useController({ name: "countryCode", control });
 
   const onSubmit = handleSubmit(async (values) => {
-    await new Promise((r) => setTimeout(r, 400));
+    const phoneCode = dialCodeToPhoneCode(values.countryCode);
+    const mobileNumber = normalizeMobileNumber(values.phoneNumber);
 
-    safeSessionSetItem(
-      LOGIN_PHONE_STORAGE_KEY,
-      JSON.stringify({
-        countryCode: values.countryCode,
-        phoneNumber: values.phoneNumber,
-      }),
-    );
-    toast.success("OTP sent");
-    router.push("/login/verify");
+    try {
+      await sendOtp({
+        phone_code: phoneCode,
+        mobile_number: mobileNumber,
+      });
+
+      safeSessionSetItem(
+        LOGIN_PHONE_STORAGE_KEY,
+        JSON.stringify({
+          countryCode: values.countryCode,
+          phoneNumber: values.phoneNumber,
+          phone_code: phoneCode,
+          mobile_number: mobileNumber,
+        }),
+      );
+      toast.success("OTP sent");
+      router.push("/login/verify");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not send OTP. Please try again."));
+    }
   });
 
   const onGoogleSignIn = () => {

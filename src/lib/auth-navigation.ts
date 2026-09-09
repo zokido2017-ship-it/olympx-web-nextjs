@@ -9,7 +9,7 @@ import {
  * Toggle for UI-only auth routing during development.
  * Set to `false` when connecting real login/register APIs.
  */
-export const USE_MOCK_AUTH_NAVIGATION = true;
+export const USE_MOCK_AUTH_NAVIGATION = false;
 
 /**
  * UI dev: open `/player-profile` directly without login or profile checks.

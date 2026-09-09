@@ -12,6 +12,11 @@ export type PhoneLoginFormValues = z.infer<typeof phoneLoginSchema>;
 
 export const LOGIN_PHONE_STORAGE_KEY = "sportxo_login_phone";
 
+export type StoredLoginPhone = {
+  countryCode: string;
+  phoneNumber: string;
+};
+
 export const otpVerificationSchema = z.object({
   otp: z
     .string()

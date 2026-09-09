@@ -5,6 +5,7 @@ import {
 } from "@/lib/safe-storage";
 
 export const AUTH_SESSION_STORAGE_KEY = "sportxo_auth_session";
+export const AUTH_TOKEN_STORAGE_KEY = "sportxo_auth_token";
 export const PLAYER_PROFILE_COMPLETE_STORAGE_KEY =
   "sportxo_player_profile_complete";
 
@@ -15,8 +16,22 @@ function readFlag(key: string): boolean {
   return safeLocalGetItem(key) === "1";
 }
 
+export function getAuthToken(): string | null {
+  const token = safeLocalGetItem(AUTH_TOKEN_STORAGE_KEY);
+  return token?.trim() || null;
+}
+
+export function setAuthToken(token: string): void {
+  safeLocalSetItem(AUTH_TOKEN_STORAGE_KEY, token);
+  safeLocalSetItem(AUTH_SESSION_STORAGE_KEY, "1");
+}
+
+export function clearAuthToken(): void {
+  safeLocalRemoveItem(AUTH_TOKEN_STORAGE_KEY);
+}
+
 export function isAuthenticated(): boolean {
-  return readFlag(AUTH_SESSION_STORAGE_KEY);
+  return Boolean(getAuthToken()) || readFlag(AUTH_SESSION_STORAGE_KEY);
 }
 
 export function markAuthenticated(): void {
@@ -24,6 +39,7 @@ export function markAuthenticated(): void {
 }
 
 export function clearAuthenticated(): void {
+  clearAuthToken();
   safeLocalRemoveItem(AUTH_SESSION_STORAGE_KEY);
 }
 
