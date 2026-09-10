@@ -6,11 +6,14 @@ import {
 } from "@/constants/sports-catalog";
 import type { ApiSport } from "@/types/api";
 
-function mapSportCategory(
-  type: string | null | undefined,
-  slug: string,
-): SportCategory {
-  const normalized = (type ?? "").toLowerCase();
+const CATEGORY_VALUES: SportCategory[] = ["indoor", "outdoor", "digital"];
+
+function normalizeCategory(value: string | null | undefined): SportCategory | null {
+  const normalized = (value ?? "").trim().toLowerCase();
+
+  if (CATEGORY_VALUES.includes(normalized as SportCategory)) {
+    return normalized as SportCategory;
+  }
 
   if (normalized.includes("indoor")) return "indoor";
   if (
@@ -22,42 +25,62 @@ function mapSportCategory(
   }
   if (normalized.includes("outdoor")) return "outdoor";
 
+  return null;
+}
+
+function mapSportCategory(sport: ApiSport): SportCategory {
+  const fromCategory = normalizeCategory(sport.category);
+  if (fromCategory) return fromCategory;
+
+  const fromCategoryName = normalizeCategory(sport.category_name);
+  if (fromCategoryName) return fromCategoryName;
+
+  const slug = sport.slug?.trim() || String(sport.id);
   const fallback = SPORTS_CATALOG.find(
-    (sport) => sport.id === slug || sport.name.toLowerCase() === slug,
+    (item) => item.id === slug || item.name.toLowerCase() === sport.name.toLowerCase(),
   );
 
   return fallback?.category ?? "outdoor";
 }
 
-export function resolveSportIconUrl(
-  iconPath: string | null | undefined,
-  slug: string,
-): string {
-  if (iconPath?.trim()) {
-    const value = iconPath.trim();
-    if (value.startsWith("http://") || value.startsWith("https://")) {
-      return value;
+export function resolveSportIconUrl(sport: ApiSport): string {
+  const iconUrl = sport.icon_url?.trim();
+  if (iconUrl) {
+    if (iconUrl.startsWith("http://") || iconUrl.startsWith("https://")) {
+      return iconUrl;
     }
 
-    if (value.startsWith("/")) {
-      return `${getApiOrigin()}${value}`;
+    if (iconUrl.startsWith("/")) {
+      return `${getApiOrigin()}${iconUrl}`;
     }
 
-    return `${getApiOrigin()}/${value}`;
+    return `${getApiOrigin()}/${iconUrl}`;
   }
 
-  const local = SPORTS_CATALOG.find((sport) => sport.id === slug);
+  const iconPath = sport.icon_path?.trim();
+  if (iconPath) {
+    if (iconPath.startsWith("http://") || iconPath.startsWith("https://")) {
+      return iconPath;
+    }
+
+    if (iconPath.startsWith("/")) {
+      return `${getApiOrigin()}${iconPath}`;
+    }
+
+    return `${getApiOrigin()}/${iconPath}`;
+  }
+
+  const slug = sport.slug?.trim() || String(sport.id);
+  const local = SPORTS_CATALOG.find((item) => item.id === slug);
   return local?.iconSrc ?? `/sports/icons/${slug}.png`;
 }
 
 export function mapApiSportToOption(sport: ApiSport): SportOption {
-  const slug = sport.slug?.trim() || String(sport.id);
-
   return {
     id: String(sport.id),
     name: sport.name,
-    category: mapSportCategory(sport.type, slug),
-    iconSrc: resolveSportIconUrl(sport.icon_path, slug),
+    category: mapSportCategory(sport),
+    iconSrc: resolveSportIconUrl(sport),
   };
 }
 

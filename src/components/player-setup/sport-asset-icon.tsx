@@ -13,10 +13,10 @@ type SportAssetIconProps = {
 export function SportAssetIcon({
   src,
   alt,
-  size = 36,
+  size = 64,
   className,
 }: SportAssetIconProps) {
-  const innerSize = Math.round(size * 0.88);
+  const innerSize = Math.min(size, Math.round(size * 0.9));
 
   return (
     <span

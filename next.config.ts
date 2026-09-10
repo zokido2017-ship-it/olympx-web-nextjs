@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "www.sportxo.in",
       },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+      },
     ],
   },
   turbopack: {

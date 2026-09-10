@@ -20,13 +20,18 @@ function normalizeSportsPayload(payload: unknown): ApiSport[] {
   return [];
 }
 
-export async function fetchSportsFromApi(): Promise<SportOption[]> {
+export type FetchSportsResult = {
+  sports: SportOption[];
+  source: "api" | "fallback";
+};
+
+export async function fetchSportsFromApi(): Promise<FetchSportsResult> {
   const { data } = await apiClient.get<unknown>("/sports");
   const sports = normalizeSportsPayload(data);
 
   if (sports.length === 0) {
-    return SPORTS_CATALOG;
+    return { sports: SPORTS_CATALOG, source: "fallback" };
   }
 
-  return mapApiSportsToOptions(sports);
+  return { sports: mapApiSportsToOptions(sports), source: "api" };
 }

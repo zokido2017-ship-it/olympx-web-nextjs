@@ -79,8 +79,8 @@ export function SportsInformationSection({
           <div className="space-y-1">
             <h2 className="text-lg font-bold text-sportxo-navy">Sports Selection</h2>
             <p className="text-sm text-sportxo-text-muted">
-              Choose the sports you play. Icons and IDs are loaded from the Sportxo
-              sports API.
+              Choose the sports you play. Sports are grouped by Indoor, Outdoor,
+              and Digital from the Sportxo API.
             </p>
             {usingFallbackCatalog ? (
               <p className="text-xs font-medium text-amber-700">
@@ -177,10 +177,14 @@ export function SportsInformationSection({
                             sport.category === "indoor" ? "#F8F9FC" : "#FFFFFF",
                         }}
                       >
-                        <span className="grid size-7 shrink-0 place-items-center overflow-hidden rounded-md border border-sportxo-border/90 bg-sportxo-white">
-                          <SportAssetIcon src={sport.iconSrc} alt="" size={24} />
+                        <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md border border-sportxo-border/90 bg-sportxo-white">
+                          <SportAssetIcon
+                            src={sport.iconSrc}
+                            alt={sport.name}
+                            size={40}
+                          />
                         </span>
-                        {sport.name}
+                        <span className="line-clamp-2">{sport.name}</span>
                       </span>
                     ))}
                   </div>

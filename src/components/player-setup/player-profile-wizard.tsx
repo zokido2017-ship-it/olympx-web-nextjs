@@ -191,21 +191,14 @@ export function PlayerProfileWizard({
     let cancelled = false;
 
     async function loadSports() {
-      if (!isAuthenticated()) {
-        setSports(SPORTS_CATALOG);
-        setUsingFallbackCatalog(true);
-        setSportsLoading(false);
-        return;
-      }
-
       setSportsLoading(true);
       setSportsError(null);
 
       try {
-        const apiSports = await fetchSportsFromApi();
+        const result = await fetchSportsFromApi();
         if (!cancelled) {
-          setSports(apiSports);
-          setUsingFallbackCatalog(false);
+          setSports(result.sports);
+          setUsingFallbackCatalog(result.source === "fallback");
         }
       } catch (error) {
         if (!cancelled) {

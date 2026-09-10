@@ -38,8 +38,12 @@ export type ApiSport = {
   name: string;
   slug: string;
   description?: string | null;
-  icon_path?: string | null;
+  sport_category_id?: number | null;
+  category?: string | null;
+  category_name?: string | null;
   type?: string | null;
+  icon_url?: string | null;
+  icon_path?: string | null;
   is_active?: boolean | null;
 };
 
