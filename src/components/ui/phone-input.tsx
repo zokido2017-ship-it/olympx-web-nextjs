@@ -64,11 +64,11 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
     };
 
     return (
-      <div ref={rootRef} className="relative">
+      <div ref={rootRef} className="relative w-full min-w-0">
         <div
           className={cn(
-            "flex h-12 w-full items-center overflow-hidden rounded-full border bg-[#F3F5F9] transition-colors",
-            "border-transparent focus-within:border-sportxo-blue/30 focus-within:bg-sportxo-white focus-within:ring-2 focus-within:ring-sportxo-blue/15",
+            "flex h-12 min-h-[3rem] w-full min-w-0 max-w-full items-center rounded-full border bg-[#F8FAFC] transition-all",
+            "border-sportxo-border/80 focus-within:border-sportxo-blue/40 focus-within:bg-white focus-within:ring-4 focus-within:ring-sportxo-blue/10",
             error &&
               "border-red-500 focus-within:border-red-500 focus-within:ring-red-500/15",
             className,
@@ -80,12 +80,12 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
             aria-expanded={open}
             aria-controls={listId}
             onClick={() => setOpen((value) => !value)}
-            className="flex h-full shrink-0 items-center gap-1.5 pl-4 pr-2.5 text-sm font-medium text-sportxo-navy transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sportxo-blue/25"
+            className="flex h-full shrink-0 items-center gap-1 pl-3 pr-1.5 text-sm font-medium text-sportxo-navy transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sportxo-blue/25 sm:gap-1.5 sm:pl-4 sm:pr-2.5"
           >
             <span className="text-base leading-none" aria-hidden>
               {selected.flag}
             </span>
-            <span>{selected.dialCode}</span>
+            <span className="text-xs sm:text-sm">{selected.dialCode}</span>
             <HiChevronDown
               className={cn(
                 "size-4 text-[#64748B] transition-transform",
@@ -106,7 +106,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
             type="tel"
             autoComplete="tel-national"
             placeholder={placeholder}
-            className="min-w-0 flex-1 bg-transparent py-2 pl-3 pr-4 text-sm font-medium text-sportxo-navy outline-none placeholder:font-normal placeholder:text-[#94A3B8]"
+            className="min-w-0 flex-1 bg-transparent py-2 pl-2 pr-3 text-sm font-medium text-sportxo-navy outline-none placeholder:font-normal placeholder:text-[#94A3B8] sm:pl-3 sm:pr-4"
             {...props}
           />
         </div>

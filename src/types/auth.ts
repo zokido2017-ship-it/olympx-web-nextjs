@@ -11,6 +11,37 @@ export const phoneLoginSchema = z.object({
 export type PhoneLoginFormValues = z.infer<typeof phoneLoginSchema>;
 
 export const LOGIN_PHONE_STORAGE_KEY = "sportxo_login_phone";
+export const SIGNUP_SESSION_STORAGE_KEY = "sportxo_signup_session";
+
+export type StoredLoginPhone = {
+  countryCode: string;
+  phoneNumber: string;
+  phone_code?: string;
+  mobile_number?: string;
+};
+
+export type SignupSession = {
+  mode: "phone" | "google";
+  countryCode: string;
+  phoneNumber: string;
+  phone_code: string;
+  mobile_number: string;
+  email?: string;
+  fullName?: string;
+  first_name?: string;
+  last_name?: string;
+  googleId?: string;
+};
+
+export const phoneSignupSchema = z.object({
+  countryCode: z.string().min(1),
+  phoneNumber: z
+    .string()
+    .min(1, "Phone number is required")
+    .min(8, "Enter a valid phone number"),
+});
+
+export type PhoneSignupFormValues = z.infer<typeof phoneSignupSchema>;
 
 export const otpVerificationSchema = z.object({
   otp: z
@@ -21,6 +52,7 @@ export const otpVerificationSchema = z.object({
 
 export type OtpVerificationFormValues = z.infer<typeof otpVerificationSchema>;
 
+/** @deprecated Legacy email signup — registration now uses phone or Google. */
 export const signupSchema = z.object({
   fullName: z
     .string()

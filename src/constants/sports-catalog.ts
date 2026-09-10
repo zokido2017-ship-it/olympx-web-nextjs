@@ -164,14 +164,14 @@ export const SPORT_CATEGORY_CHIP: Record<
 > = {
   indoor: {
     unselectedChipBg: "#F8F9FC",
-    gridClassName: "grid grid-cols-2 gap-3",
+    gridClassName: "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4",
   },
   outdoor: {
     unselectedChipBg: "#FFFFFF",
-    gridClassName: "grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4",
+    gridClassName: "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4",
   },
   digital: {
     unselectedChipBg: "#FFFFFF",
-    gridClassName: "grid grid-cols-2 gap-3 md:grid-cols-3",
+    gridClassName: "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4",
   },
 };

@@ -10,18 +10,20 @@ import {
   type FormEvent,
 } from "react";
 import { toast } from "sonner";
-import { LOGIN_PHONE_STORAGE_KEY, type StoredLoginPhone } from "@/types/auth";
+import {
+  SIGNUP_SESSION_STORAGE_KEY,
+  type SignupSession,
+} from "@/types/auth";
 import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
-import { getApiErrorMessage } from "@/lib/api/errors";
 import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
-import { navigateAfterAuthSuccess } from "@/lib/auth-navigation";
-import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
-import { verifyOtpWithDevBypass } from "@/lib/verify-otp";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { navigateAfterSignupSuccess } from "@/lib/auth-navigation";
 import {
   safeSessionGetItem,
   safeSessionRemoveItem,
 } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
+import { completePhoneRegistration } from "@/services/registration.service";
 import { FieldError } from "@/components/ui/field-error";
 import { OtpInputGroup, type OtpInputGroupHandle } from "@/components/ui/otp-input-group";
 
@@ -34,7 +36,7 @@ function formatCountdown(totalSeconds: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export function OtpVerificationForm() {
+export function SignupOtpForm() {
   const router = useRouter();
   const otpRef = useRef<OtpInputGroupHandle>(null);
   const [digits, setDigits] = useState<string[]>(() =>
@@ -43,38 +45,27 @@ export function OtpVerificationForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneLabel, setPhoneLabel] = useState<string | null>(null);
-  const [phonePayload, setPhonePayload] = useState<{
-    phone_code: string;
-    mobile_number: string;
-  } | null>(null);
+  const [signupSession, setSignupSession] = useState<SignupSession | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_COOLDOWN_SECONDS);
   const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
-    const raw = safeSessionGetItem(LOGIN_PHONE_STORAGE_KEY);
+    const raw = safeSessionGetItem(SIGNUP_SESSION_STORAGE_KEY);
     if (!raw) {
-      router.replace("/login");
+      router.replace("/signup");
       return;
     }
-    try {
-      const parsed = JSON.parse(raw) as StoredLoginPhone & {
-        phone_code?: string;
-        mobile_number?: string;
-      };
-      const phone_code =
-        parsed.phone_code ?? dialCodeToPhoneCode(parsed.countryCode);
-      const mobile_number =
-        parsed.mobile_number ?? normalizeMobileNumber(parsed.phoneNumber);
 
-      if (!phone_code || !mobile_number) {
-        router.replace("/login");
+    try {
+      const session = JSON.parse(raw) as SignupSession;
+      if (!session.phone_code || !session.mobile_number) {
+        router.replace("/signup");
         return;
       }
-
-      setPhonePayload({ phone_code, mobile_number });
-      setPhoneLabel(`${parsed.countryCode} ${parsed.phoneNumber}`);
+      setSignupSession(session);
+      setPhoneLabel(`${session.countryCode} ${session.phoneNumber}`);
     } catch {
-      router.replace("/login");
+      router.replace("/signup");
     }
   }, [router]);
 
@@ -90,29 +81,26 @@ export function OtpVerificationForm() {
 
   const submitOtp = useCallback(
     async (code: string) => {
-      if (!/^\d{4}$/.test(code) || !phonePayload || isSubmitting) {
+      if (!/^\d{4}$/.test(code) || !signupSession || isSubmitting) {
         return;
       }
 
       setIsSubmitting(true);
       setError(null);
       try {
-        await verifyOtpWithDevBypass({
-          ...phonePayload,
-          otp: code,
-        });
-
-        safeSessionRemoveItem(LOGIN_PHONE_STORAGE_KEY);
-        toast.success("Verified successfully");
-        navigateAfterAuthSuccess(router);
+        await completePhoneRegistration(signupSession, code);
+        toast.success("Account created");
+        navigateAfterSignupSuccess(router);
       } catch (submitError) {
-        setError(getApiErrorMessage(submitError, "Invalid OTP. Please try again."));
+        setError(
+          getApiErrorMessage(submitError, "Could not complete registration."),
+        );
         otpRef.current?.focus(0);
       } finally {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, phonePayload, router],
+    [isSubmitting, router, signupSession],
   );
 
   const onSubmit = async (event: FormEvent) => {
@@ -126,11 +114,14 @@ export function OtpVerificationForm() {
   };
 
   const onResend = useCallback(async () => {
-    if (secondsLeft > 0 || isResending || !phonePayload) return;
+    if (secondsLeft > 0 || isResending || !signupSession) return;
 
     setIsResending(true);
     try {
-      await sendOtp(phonePayload);
+      await sendOtp({
+        phone_code: signupSession.phone_code,
+        mobile_number: signupSession.mobile_number,
+      });
       setDigits(createDefaultOtpDigits(OTP_LENGTH));
       setError(null);
       setSecondsLeft(RESEND_COOLDOWN_SECONDS);
@@ -143,7 +134,7 @@ export function OtpVerificationForm() {
     } finally {
       setIsResending(false);
     }
-  }, [isResending, phonePayload, secondsLeft]);
+  }, [isResending, secondsLeft, signupSession]);
 
   if (phoneLabel === null) {
     return (
@@ -182,7 +173,7 @@ export function OtpVerificationForm() {
         </div>
 
         <AuthPrimaryButton type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Verifying…" : "Verify & Continue"}
+          {isSubmitting ? "Creating account…" : "Verify & Create Account"}
         </AuthPrimaryButton>
       </form>
 
@@ -211,7 +202,7 @@ export function OtpVerificationForm() {
 
         <p>
           <Link
-            href="/login"
+            href="/signup"
             className="font-bold text-sportxo-blue transition-colors hover:text-[#1d4ed8]"
           >
             Change phone number

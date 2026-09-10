@@ -1,100 +1,100 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useController } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { signupSchema, type SignupFormValues } from "@/types/auth";
-import { Button } from "@/components/ui/button";
-import { FieldError } from "@/components/ui/field-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { AuthDivider, AuthFooterLink } from "@/components/auth/auth-links";
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { SignupGoogleButton } from "@/components/auth/signup-google-button";
+import { AuthDivider } from "@/components/auth/auth-divider";
+import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
 import {
-  navigateAfterSignupSuccess,
-} from "@/lib/auth-navigation";
+  phoneSignupSchema,
+  SIGNUP_SESSION_STORAGE_KEY,
+  type PhoneSignupFormValues,
+  type SignupSession,
+} from "@/types/auth";
+import { FieldError } from "@/components/ui/field-error";
+import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
+import { safeSessionSetItem } from "@/lib/safe-storage";
+import { sendOtp } from "@/services/auth-api.service";
 
 export function SignupForm() {
   const router = useRouter();
+
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
-  } = useForm<SignupFormValues>({
-    resolver: zodResolver(signupSchema),
+  } = useForm<PhoneSignupFormValues>({
+    resolver: zodResolver(phoneSignupSchema),
     defaultValues: {
-      fullName: "",
-      email: "",
+      countryCode: "+91",
+      phoneNumber: "",
     },
   });
 
-  const onSubmit = handleSubmit(async () => {
-    await new Promise((r) => setTimeout(r, 600));
-    toast.success("Account created");
-    navigateAfterSignupSuccess(router);
-  });
+  const countryField = useController({ name: "countryCode", control });
 
-  const onGoogleSignIn = () => {
-    toast.message("Google sign-up", {
-      description: "Connect your OAuth provider in production.",
-    });
+  const persistSignupSession = (session: SignupSession) => {
+    safeSessionSetItem(SIGNUP_SESSION_STORAGE_KEY, JSON.stringify(session));
   };
 
+  const onPhoneSubmit = handleSubmit(async (values) => {
+    const phone_code = dialCodeToPhoneCode(values.countryCode);
+    const mobile_number = normalizeMobileNumber(values.phoneNumber);
+
+    try {
+      await sendOtp({ phone_code, mobile_number });
+
+      persistSignupSession({
+        mode: "phone",
+        countryCode: values.countryCode,
+        phoneNumber: values.phoneNumber,
+        phone_code,
+        mobile_number,
+      });
+
+      toast.success("OTP sent");
+      router.push("/signup/verify");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not send OTP. Please try again."));
+    }
+  });
+
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight text-sportxo-navy">
-          Create account
-        </h1>
-        <p className="text-sm text-sportxo-text-muted">
-          Join Sportxo and connect with the multi-sport ecosystem.
-        </p>
-      </header>
-
-      <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        <div className="space-y-1.5">
-          <Label htmlFor="fullName">Name</Label>
-          <Input
-            id="fullName"
-            autoComplete="name"
-            placeholder="Alex Morgan"
-            error={!!errors.fullName}
-            {...register("fullName")}
-          />
-          <FieldError message={errors.fullName?.message} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            error={!!errors.email}
-            {...register("email")}
-          />
-          <FieldError message={errors.email?.message} />
-        </div>
-
-        <Button type="submit" fullWidth disabled={isSubmitting}>
-          {isSubmitting ? "Creating account…" : "Register"}
-        </Button>
-      </form>
+    <div className="w-full min-w-0 space-y-4">
+      <SignupGoogleButton />
 
       <AuthDivider />
 
-      <GoogleSignInButton
-        label="Continue with Google"
-        onClick={onGoogleSignIn}
-      />
+      <form onSubmit={onPhoneSubmit} className="w-full min-w-0 space-y-4" noValidate>
+        <div className="w-full min-w-0 space-y-2">
+          <Label
+            htmlFor="signupPhoneNumber"
+            className="text-[0.8125rem] font-medium text-sportxo-text-muted"
+          >
+            Phone number
+          </Label>
+          <PhoneInput
+            id="signupPhoneNumber"
+            placeholder="Enter mobile number"
+            error={!!errors.phoneNumber}
+            countryCode={countryField.field.value}
+            onCountryCodeChange={countryField.field.onChange}
+            {...register("phoneNumber")}
+          />
+          <FieldError message={errors.phoneNumber?.message} />
+        </div>
 
-      <AuthFooterLink
-        prompt="Already have an account?"
-        linkLabel="Sign in"
-        href="/login"
-      />
+        <AuthPrimaryButton type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Sending…" : "Continue"}
+        </AuthPrimaryButton>
+      </form>
+
     </div>
   );
 }

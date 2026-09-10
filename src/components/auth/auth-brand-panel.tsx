@@ -4,7 +4,7 @@ import { SportsTechVisual } from "@/components/auth/sports-tech-visual";
 
 export function AuthBrandPanel() {
   return (
-    <aside className="relative flex flex-col justify-between overflow-hidden bg-sportxo-navy px-6 py-10 text-sportxo-white sm:px-10 lg:min-h-screen lg:px-14 lg:py-12">
+    <aside className="relative hidden flex-col justify-between overflow-hidden bg-sportxo-navy px-6 py-10 text-sportxo-white sm:px-10 lg:flex lg:min-h-dvh lg:px-14 lg:py-12">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_#2563EB33,_transparent_55%)]"
         aria-hidden
