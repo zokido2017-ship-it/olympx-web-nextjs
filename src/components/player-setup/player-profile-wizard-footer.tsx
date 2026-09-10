@@ -35,13 +35,15 @@ export function PlayerProfileWizardFooter({
   );
 
   const primaryLabel =
-    step === 2
-      ? "Continue to Fitness"
-      : step < 3
-        ? "Continue"
-        : isCompleting
-          ? "Completing…"
-          : "Complete Profile";
+    step === 1
+      ? "Continue to Sports"
+      : step === 2
+        ? "Continue to Fitness"
+        : step < 3
+          ? "Continue"
+          : isCompleting
+            ? "Completing…"
+            : "Complete Profile";
 
   return (
     <footer

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FitnessInformationSection } from "@/components/player-setup/fitness-information-section";
@@ -12,14 +12,31 @@ import { PersonalInformationSection } from "@/components/player-setup/personal-i
 import { PlayerProfileWizardFooter } from "@/components/player-setup/player-profile-wizard-footer";
 import { PlayerProfileWizardStepper } from "@/components/player-setup/player-profile-wizard-stepper";
 import { SportsInformationSection } from "@/components/player-setup/sports-information-section";
-import { DASHBOARD_PATH, markPlayerProfileComplete } from "@/lib/auth-session";
+import { SPORTS_CATALOG, type SportOption } from "@/constants/sports-catalog";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import {
+  DASHBOARD_PATH,
+  getStoredPlayerId,
+  isAuthenticated,
+  markPlayerProfileComplete,
+  setStoredPlayerId,
+} from "@/lib/auth-session";
 import { cn } from "@/lib/cn";
+import { safeSessionGetItem } from "@/lib/safe-storage";
+import {
+  applyPlayerToWizardState,
+  loadAuthenticatedUser,
+  savePlayerWizardStep,
+} from "@/services/player-profile-api.service";
+import { fetchSportsFromApi } from "@/services/sports-api.service";
+import type { SignupSession } from "@/types/auth";
+import { SIGNUP_SESSION_STORAGE_KEY } from "@/types/auth";
 
 const WIZARD_BODY_PADDING =
   "px-4 py-4 sm:px-8 sm:py-6 md:px-10 lg:px-12 xl:px-14";
 
 const initialConnections: Record<FitnessProvider, FitnessConnectionStatus> = {
-  apple: "connected",
+  apple: "disconnected",
   google: "disconnected",
   fitbit: "disconnected",
 };
@@ -40,6 +57,17 @@ function WizardStepPanel({
   return <div className="w-full">{children}</div>;
 }
 
+function readSignupSession(): SignupSession | null {
+  const raw = safeSessionGetItem(SIGNUP_SESSION_STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as SignupSession;
+  } catch {
+    return null;
+  }
+}
+
 export function PlayerProfileWizard({
   onCompleteRedirect = DASHBOARD_PATH,
 }: PlayerProfileWizardProps) {
@@ -48,6 +76,12 @@ export function PlayerProfileWizard({
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [playerId, setPlayerId] = useState<number | null>(getStoredPlayerId());
+  const [sports, setSports] = useState<SportOption[]>(SPORTS_CATALOG);
+  const [sportsLoading, setSportsLoading] = useState(true);
+  const [sportsError, setSportsError] = useState<string | null>(null);
+  const [usingFallbackCatalog, setUsingFallbackCatalog] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -86,21 +120,245 @@ export function PlayerProfileWizard({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [step]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootstrap() {
+      const signupSession = readSignupSession();
+
+      if (signupSession) {
+        setFullName(signupSession.fullName ?? "");
+        setEmail(signupSession.email ?? "");
+        setPhoneNumber(signupSession.phoneNumber ?? "");
+        setCountryCode(signupSession.countryCode ?? "+91");
+      }
+
+      if (!isAuthenticated()) {
+        setIsBootstrapping(false);
+        return;
+      }
+
+      try {
+        const user = await loadAuthenticatedUser();
+        if (!user || cancelled) {
+          setIsBootstrapping(false);
+          return;
+        }
+
+        const storedId = getStoredPlayerId();
+        if (storedId) {
+          setPlayerId(storedId);
+        }
+
+        if (user.player) {
+          const applied = applyPlayerToWizardState(user.player);
+          if (applied.personal.fullName) setFullName(applied.personal.fullName);
+          if (applied.personal.email) setEmail(applied.personal.email);
+          setDateOfBirth(applied.personal.dateOfBirth);
+          setNationality(applied.personal.nationality);
+          setGender(applied.personal.gender);
+          setSelectedSportIds(applied.sportIds);
+          setHeight(applied.fitness.height);
+          setWeight(applied.fitness.weight);
+          setConnections(applied.fitness.connections as Record<
+            FitnessProvider,
+            FitnessConnectionStatus
+          >);
+          setPlayerId(user.player.id);
+          setStoredPlayerId(user.player.id);
+
+          if (!user.player.profile?.profile_complete) {
+            setStep(Math.min(Math.max(applied.setupStep, 1), 3));
+          }
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (!cancelled) {
+          setIsBootstrapping(false);
+        }
+      }
+    }
+
+    bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSports() {
+      if (!isAuthenticated()) {
+        setSports(SPORTS_CATALOG);
+        setUsingFallbackCatalog(true);
+        setSportsLoading(false);
+        return;
+      }
+
+      setSportsLoading(true);
+      setSportsError(null);
+
+      try {
+        const apiSports = await fetchSportsFromApi();
+        if (!cancelled) {
+          setSports(apiSports);
+          setUsingFallbackCatalog(false);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSports(SPORTS_CATALOG);
+          setUsingFallbackCatalog(true);
+          setSportsError(
+            getApiErrorMessage(error, "Could not load sports from the API."),
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setSportsLoading(false);
+        }
+      }
+    }
+
+    loadSports();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const validateStep = useCallback(
+    (currentStep: number): string | null => {
+      if (currentStep === 1) {
+        if (!fullName.trim()) return "Enter your full name.";
+        if (!email.trim()) return "Enter your email address.";
+        if (!dateOfBirth) return "Select your date of birth.";
+        if (!nationality.trim()) return "Enter your nationality.";
+        if (!gender) return "Select your gender.";
+      }
+
+      if (currentStep === 2 && selectedSportIds.length === 0) {
+        return "Select at least one sport.";
+      }
+
+      return null;
+    },
+    [
+      dateOfBirth,
+      email,
+      fullName,
+      gender,
+      nationality,
+      selectedSportIds.length,
+    ],
+  );
+
+  const persistWizard = useCallback(
+    async (nextStep: number, profileComplete: boolean) => {
+      const user = await loadAuthenticatedUser();
+      if (!user) {
+        throw new Error("Please sign in to save your player profile.");
+      }
+
+      const player = await savePlayerWizardStep({
+        playerId,
+        user,
+        personal: {
+          fullName,
+          email,
+          dateOfBirth,
+          nationality,
+          gender,
+        },
+        sportIds: selectedSportIds,
+        fitness: {
+          height,
+          weight,
+          connections,
+        },
+        setupStep: nextStep,
+        profileComplete,
+      });
+
+      setPlayerId(player.id);
+      setStoredPlayerId(player.id);
+      return player;
+    },
+    [
+      connections,
+      countryCode,
+      dateOfBirth,
+      email,
+      fullName,
+      gender,
+      height,
+      nationality,
+      phoneNumber,
+      playerId,
+      selectedSportIds,
+      weight,
+    ],
+  );
+
   const onSaveDraft = async () => {
+    const validationError = validateStep(step);
+    if (validationError && step === 1) {
+      toast.error(validationError);
+      return;
+    }
+
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    toast.success("Draft saved");
-    setIsSaving(false);
+    try {
+      await persistWizard(step, false);
+      toast.success("Draft saved");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not save draft."));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const onContinue = async () => {
+    const validationError = validateStep(step);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await persistWizard(step + 1, false);
+      goToStep(step + 1);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not save this step."));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const onComplete = async () => {
     setIsCompleting(true);
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    markPlayerProfileComplete();
-    toast.success("Player profile completed");
-    setIsCompleting(false);
-    router.push(onCompleteRedirect);
+    try {
+      await persistWizard(3, true);
+      markPlayerProfileComplete();
+      toast.success("Player profile completed");
+      router.push(onCompleteRedirect);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not complete your profile."));
+    } finally {
+      setIsCompleting(false);
+    }
   };
+
+  if (isBootstrapping) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-sportxo-text-muted">
+        Loading your profile…
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">
@@ -126,6 +384,14 @@ export function PlayerProfileWizard({
             >
               <div className="relative w-full min-w-0">
                 <WizardStepPanel active={step === 1}>
+                  <div className="mb-4 space-y-1">
+                    <h2 className="text-lg font-bold text-sportxo-navy">
+                      Personal Information
+                    </h2>
+                    <p className="text-sm text-sportxo-text-muted">
+                      Tell us about yourself to set up your player profile.
+                    </p>
+                  </div>
                   <PersonalInformationSection
                     wizardMode
                     fullName={fullName}
@@ -148,12 +414,24 @@ export function PlayerProfileWizard({
                 <WizardStepPanel active={step === 2}>
                   <SportsInformationSection
                     wizardMode
+                    sports={sports}
                     selectedSportIds={selectedSportIds}
                     onToggleSport={toggleSport}
+                    isLoading={sportsLoading}
+                    loadError={sportsError}
+                    usingFallbackCatalog={usingFallbackCatalog}
                   />
                 </WizardStepPanel>
 
                 <WizardStepPanel active={step === 3}>
+                  <div className="mb-4 space-y-1">
+                    <h2 className="text-lg font-bold text-sportxo-navy">
+                      Fitness Information
+                    </h2>
+                    <p className="text-sm text-sportxo-text-muted">
+                      Add your fitness details and connect health platforms.
+                    </p>
+                  </div>
                   <FitnessInformationSection
                     wizardMode
                     height={height}
@@ -172,7 +450,7 @@ export function PlayerProfileWizard({
             step={step}
             onBack={() => goToStep(step - 1)}
             onSaveDraft={onSaveDraft}
-            onContinue={() => goToStep(step + 1)}
+            onContinue={onContinue}
             onComplete={onComplete}
             isSaving={isSaving}
             isCompleting={isCompleting}

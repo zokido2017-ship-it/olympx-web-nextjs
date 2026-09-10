@@ -8,6 +8,7 @@ export const AUTH_SESSION_STORAGE_KEY = "sportxo_auth_session";
 export const AUTH_TOKEN_STORAGE_KEY = "sportxo_auth_token";
 export const PLAYER_PROFILE_COMPLETE_STORAGE_KEY =
   "sportxo_player_profile_complete";
+export const PLAYER_ID_STORAGE_KEY = "sportxo_player_id";
 
 export const PLAYER_PROFILE_PATH = "/player-profile";
 export const DASHBOARD_PATH = "/dashboard";
@@ -53,6 +54,22 @@ export function markPlayerProfileComplete(): void {
 
 export function clearPlayerProfileComplete(): void {
   safeLocalRemoveItem(PLAYER_PROFILE_COMPLETE_STORAGE_KEY);
+}
+
+export function getStoredPlayerId(): number | null {
+  const raw = safeLocalGetItem(PLAYER_ID_STORAGE_KEY);
+  if (!raw) return null;
+
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function setStoredPlayerId(playerId: number): void {
+  safeLocalSetItem(PLAYER_ID_STORAGE_KEY, String(playerId));
+}
+
+export function clearStoredPlayerId(): void {
+  safeLocalRemoveItem(PLAYER_ID_STORAGE_KEY);
 }
 
 /** Where to send the user after real API auth (see `navigateAfterAuthSuccess`). */
