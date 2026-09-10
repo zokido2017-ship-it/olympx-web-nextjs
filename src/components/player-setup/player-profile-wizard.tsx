@@ -16,13 +16,22 @@ import { SPORTS_CATALOG, type SportOption } from "@/constants/sports-catalog";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   DASHBOARD_PATH,
+  getAuthToken,
   getStoredPlayerId,
   isAuthenticated,
   markPlayerProfileComplete,
   setStoredPlayerId,
 } from "@/lib/auth-session";
 import { cn } from "@/lib/cn";
-import { safeSessionGetItem } from "@/lib/safe-storage";
+import {
+  clearPlayerWizardDraft,
+  readPlayerWizardDraft,
+  writePlayerWizardDraft,
+} from "@/lib/player-wizard-draft";
+import {
+  safeSessionGetItem,
+  safeSessionRemoveItem,
+} from "@/lib/safe-storage";
 import {
   applyPlayerToWizardState,
   loadAuthenticatedUser,
@@ -133,7 +142,26 @@ export function PlayerProfileWizard({
         setCountryCode(signupSession.countryCode ?? "+91");
       }
 
-      if (!isAuthenticated()) {
+      const localDraft = readPlayerWizardDraft();
+      if (localDraft) {
+        setStep(localDraft.step);
+        setFullName(localDraft.fullName);
+        setEmail(localDraft.email);
+        setPhoneNumber(localDraft.phoneNumber);
+        setCountryCode(localDraft.countryCode);
+        setDateOfBirth(localDraft.dateOfBirth);
+        setNationality(localDraft.nationality);
+        setGender(localDraft.gender);
+        setSelectedSportIds(localDraft.selectedSportIds);
+        setHeight(localDraft.height);
+        setWeight(localDraft.weight);
+        setConnections(localDraft.connections as Record<
+          FitnessProvider,
+          FitnessConnectionStatus
+        >);
+      }
+
+      if (!isAuthenticated() || !getAuthToken()) {
         setIsBootstrapping(false);
         return;
       }
@@ -248,16 +276,44 @@ export function PlayerProfileWizard({
     ],
   );
 
+  const saveLocalDraft = useCallback(
+    (nextStep: number) => {
+      writePlayerWizardDraft({
+        step: nextStep,
+        fullName,
+        email,
+        phoneNumber,
+        countryCode,
+        dateOfBirth,
+        nationality,
+        gender,
+        selectedSportIds,
+        height,
+        weight,
+        connections,
+      });
+    },
+    [
+      connections,
+      countryCode,
+      dateOfBirth,
+      email,
+      fullName,
+      gender,
+      height,
+      nationality,
+      phoneNumber,
+      selectedSportIds,
+      weight,
+    ],
+  );
+
   const persistWizard = useCallback(
     async (nextStep: number, profileComplete: boolean) => {
-      const user = await loadAuthenticatedUser();
-      if (!user) {
-        throw new Error("Please sign in to save your player profile.");
-      }
+      saveLocalDraft(nextStep);
 
       const player = await savePlayerWizardStep({
         playerId,
-        user,
         personal: {
           fullName,
           email,
@@ -275,8 +331,11 @@ export function PlayerProfileWizard({
         profileComplete,
       });
 
-      setPlayerId(player.id);
-      setStoredPlayerId(player.id);
+      if (player) {
+        setPlayerId(player.id);
+        setStoredPlayerId(player.id);
+      }
+
       return player;
     },
     [
@@ -295,24 +354,6 @@ export function PlayerProfileWizard({
     ],
   );
 
-  const onSaveDraft = async () => {
-    const validationError = validateStep(step);
-    if (validationError && step === 1) {
-      toast.error(validationError);
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await persistWizard(step, false);
-      toast.success("Draft saved");
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not save draft."));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const onContinue = async () => {
     const validationError = validateStep(step);
     if (validationError) {
@@ -320,12 +361,15 @@ export function PlayerProfileWizard({
       return;
     }
 
+    const nextStep = step + 1;
+    saveLocalDraft(nextStep);
+    goToStep(nextStep);
+
     setIsSaving(true);
     try {
-      await persistWizard(step + 1, false);
-      goToStep(step + 1);
+      await persistWizard(nextStep, false);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not save this step."));
+      console.error(error);
     } finally {
       setIsSaving(false);
     }
@@ -335,6 +379,8 @@ export function PlayerProfileWizard({
     setIsCompleting(true);
     try {
       await persistWizard(3, true);
+      clearPlayerWizardDraft();
+      safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
       markPlayerProfileComplete();
       toast.success("Player profile completed");
       router.push(onCompleteRedirect);
@@ -442,7 +488,6 @@ export function PlayerProfileWizard({
           <PlayerProfileWizardFooter
             step={step}
             onBack={() => goToStep(step - 1)}
-            onSaveDraft={onSaveDraft}
             onContinue={onContinue}
             onComplete={onComplete}
             isSaving={isSaving}

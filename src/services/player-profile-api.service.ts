@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api/client";
+import { getAuthToken } from "@/lib/auth-session";
 import { splitFullName } from "@/lib/phone";
 import { fetchCurrentUser } from "@/services/auth-api.service";
 import type {
@@ -123,6 +124,10 @@ export async function loadAuthenticatedUser(): Promise<ApiUser | null> {
   }
 }
 
+export function canPersistPlayerProfile(): boolean {
+  return Boolean(getAuthToken());
+}
+
 export async function ensurePlayerForUser(
   user: ApiUser,
   personal: PlayerWizardPersonalFields,
@@ -155,13 +160,21 @@ export async function savePlayerWizardStep({
   profileComplete,
 }: {
   playerId?: number | null;
-  user: ApiUser;
+  user?: ApiUser | null;
   personal: PlayerWizardPersonalFields;
   sportIds: string[];
   fitness: PlayerWizardFitnessFields;
   setupStep: number;
   profileComplete: boolean;
-}): Promise<ApiPlayer> {
+}): Promise<ApiPlayer | null> {
+  if (!canPersistPlayerProfile()) {
+    return null;
+  }
+
+  const resolvedUser = user ?? (await loadAuthenticatedUser());
+  if (!resolvedUser) {
+    return null;
+  }
   const profile = buildPlayerProfileJson({
     sportIds,
     fitness,
@@ -169,7 +182,7 @@ export async function savePlayerWizardStep({
     profileComplete,
   });
 
-  const player = await ensurePlayerForUser(user, personal, profile, playerId);
+  const player = await ensurePlayerForUser(resolvedUser, personal, profile, playerId);
 
   return updatePlayer(player.id, {
     first_name: splitFullName(personal.fullName).first_name,

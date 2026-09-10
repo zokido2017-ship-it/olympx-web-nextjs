@@ -89,7 +89,6 @@ export function SignupOtpForm() {
       setError(null);
       try {
         await completePhoneRegistration(signupSession, code);
-        safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
         toast.success("Account created");
         navigateAfterSignupSuccess(router);
       } catch (submitError) {

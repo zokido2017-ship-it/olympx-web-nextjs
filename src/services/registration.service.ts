@@ -22,15 +22,12 @@ export async function completePhoneRegistration(
 
   let token: string | null = null;
 
-  if (!isDevOtpCode(otp)) {
+  try {
     const response = await validateOtp(otpPayload);
     token = extractAuthToken(response);
-  } else {
-    try {
-      const response = await validateOtp(otpPayload);
-      token = extractAuthToken(response);
-    } catch {
-      // Fall through to register + dev session when backend rejects 0000.
+  } catch {
+    if (!isDevOtpCode(otp)) {
+      throw new Error("Invalid OTP. Please try again.");
     }
   }
 

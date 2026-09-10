@@ -7,7 +7,6 @@ type PlayerProfileWizardFooterProps = {
   step: number;
   embedded?: boolean;
   onBack?: () => void;
-  onSaveDraft?: () => void;
   onContinue?: () => void;
   onComplete?: () => void;
   isSaving?: boolean;
@@ -18,14 +17,13 @@ export function PlayerProfileWizardFooter({
   step,
   embedded = true,
   onBack,
-  onSaveDraft,
   onContinue,
   onComplete,
   isSaving = false,
   isCompleting = false,
 }: PlayerProfileWizardFooterProps) {
   const primaryClass = cn(
-    "inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-sportxo-blue px-4 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgb(37_99_235_/_0.8)] transition-colors sm:min-w-[11rem] sm:flex-none sm:gap-2 sm:px-6",
+    "inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-sportxo-blue px-6 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgb(37_99_235_/_0.8)] transition-colors sm:w-auto sm:min-w-[11rem]",
     "hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sportxo-blue/30 disabled:opacity-50",
   );
 
@@ -36,9 +34,13 @@ export function PlayerProfileWizardFooter({
 
   const primaryLabel =
     step === 1
-      ? "Continue to Sports"
+      ? isSaving
+        ? "Saving…"
+        : "Continue to Sports"
       : step === 2
-        ? "Continue to Fitness"
+        ? isSaving
+          ? "Saving…"
+          : "Continue to Fitness"
         : step < 3
           ? "Continue"
           : isCompleting
@@ -52,53 +54,45 @@ export function PlayerProfileWizardFooter({
         embedded && "rounded-b-2xl sm:rounded-b-[20px]",
       )}
     >
-      <div className="flex items-center justify-between gap-2 sm:gap-3">
-        <div className="flex min-w-0 flex-1 items-center sm:flex-none">
-          {step === 1 ? (
-            <button
-              type="button"
-              onClick={onSaveDraft}
-              disabled={isSaving || isCompleting}
-              className="inline-flex h-11 min-w-0 items-center justify-start rounded-lg px-1 text-sm font-semibold text-sportxo-blue transition-colors hover:bg-[#EFF6FF] hover:text-[#1d4ed8] disabled:opacity-50 sm:min-w-[8.5rem] sm:px-2"
-            >
-              {isSaving ? "Saving…" : "Save Draft"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onBack}
-              disabled={isSaving || isCompleting}
-              className={secondaryClass}
-            >
-              <ArrowLeft className="size-4 shrink-0" aria-hidden />
-              Back
-            </button>
-          )}
-        </div>
+      <div
+        className={cn(
+          "flex items-center gap-2 sm:gap-3",
+          step === 1 ? "justify-end" : "justify-between",
+        )}
+      >
+        {step > 1 ? (
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={isSaving || isCompleting}
+            className={secondaryClass}
+          >
+            <ArrowLeft className="size-4 shrink-0" aria-hidden />
+            Back
+          </button>
+        ) : null}
 
-        <div className="flex min-w-0 flex-1 items-center justify-end sm:flex-none">
-          {step < 3 ? (
-            <button
-              type="button"
-              onClick={onContinue}
-              disabled={isSaving || isCompleting}
-              className={primaryClass}
-            >
-              <span className="truncate">{primaryLabel}</span>
-              <ArrowRight className="size-4 shrink-0" aria-hidden />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onComplete}
-              disabled={isSaving || isCompleting}
-              className={primaryClass}
-            >
-              <span className="truncate">{primaryLabel}</span>
-              <Check className="size-4 shrink-0" aria-hidden />
-            </button>
-          )}
-        </div>
+        {step < 3 ? (
+          <button
+            type="button"
+            onClick={onContinue}
+            disabled={isSaving || isCompleting}
+            className={primaryClass}
+          >
+            <span className="truncate">{primaryLabel}</span>
+            <ArrowRight className="size-4 shrink-0" aria-hidden />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onComplete}
+            disabled={isSaving || isCompleting}
+            className={primaryClass}
+          >
+            <span className="truncate">{primaryLabel}</span>
+            <Check className="size-4 shrink-0" aria-hidden />
+          </button>
+        )}
       </div>
     </footer>
   );

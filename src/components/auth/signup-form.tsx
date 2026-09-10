@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, useController } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -96,15 +95,6 @@ export function SignupForm() {
         </AuthPrimaryButton>
       </form>
 
-      <p className="text-center text-sm text-sportxo-text-muted">
-        Already have an account?{" "}
-        <Link
-          href="/login"
-          className="font-bold text-sportxo-blue hover:text-[#1d4ed8]"
-        >
-          Sign in
-        </Link>
-      </p>
     </div>
   );
 }
