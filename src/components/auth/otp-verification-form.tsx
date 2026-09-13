@@ -14,14 +14,16 @@ import { LOGIN_PHONE_STORAGE_KEY, type StoredLoginPhone } from "@/types/auth";
 import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
-import { navigateAfterAuthSuccess } from "@/lib/auth-navigation";
+import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
+import { navigateAfterPhoneOtpAuth } from "@/lib/auth-navigation";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
-import { completePhoneLogin } from "@/services/login.service";
 import {
   safeSessionGetItem,
   safeSessionRemoveItem,
+  safeSessionSetItem,
 } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
+import { completePhoneOtpVerification } from "@/services/phone-auth.service";
 import { FieldError } from "@/components/ui/field-error";
 import { OtpInputGroup, type OtpInputGroupHandle } from "@/components/ui/otp-input-group";
 
@@ -43,10 +45,7 @@ export function OtpVerificationForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneLabel, setPhoneLabel] = useState<string | null>(null);
-  const [phonePayload, setPhonePayload] = useState<{
-    phone_code: string;
-    mobile_number: string;
-  } | null>(null);
+  const [phoneSession, setPhoneSession] = useState<StoredLoginPhone | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_COOLDOWN_SECONDS);
   const [isResending, setIsResending] = useState(false);
 
@@ -57,10 +56,7 @@ export function OtpVerificationForm() {
       return;
     }
     try {
-      const parsed = JSON.parse(raw) as StoredLoginPhone & {
-        phone_code?: string;
-        mobile_number?: string;
-      };
+      const parsed = JSON.parse(raw) as StoredLoginPhone;
       const phone_code =
         parsed.phone_code ?? dialCodeToPhoneCode(parsed.countryCode);
       const mobile_number =
@@ -71,7 +67,11 @@ export function OtpVerificationForm() {
         return;
       }
 
-      setPhonePayload({ phone_code, mobile_number });
+      setPhoneSession({
+        ...parsed,
+        phone_code,
+        mobile_number,
+      });
       setPhoneLabel(`${parsed.countryCode} ${parsed.phoneNumber}`);
     } catch {
       router.replace("/login");
@@ -90,21 +90,30 @@ export function OtpVerificationForm() {
 
   const submitOtp = useCallback(
     async (code: string) => {
-      if (!/^\d{4}$/.test(code) || !phonePayload || isSubmitting) {
+      if (!/^\d{4}$/.test(code) || !phoneSession?.phone_code || !phoneSession.mobile_number || isSubmitting) {
         return;
       }
 
       setIsSubmitting(true);
       setError(null);
       try {
-        await completePhoneLogin({
-          ...phonePayload,
-          otp: code,
+        const result = await completePhoneOtpVerification({
+          otpPayload: {
+            phone_code: phoneSession.phone_code,
+            mobile_number: phoneSession.mobile_number,
+            otp: code,
+          },
+          registered: Boolean(phoneSession.registered),
+          playerExists: Boolean(phoneSession.player_exists),
         });
 
         safeSessionRemoveItem(LOGIN_PHONE_STORAGE_KEY);
-        toast.success("Verified successfully");
-        navigateAfterAuthSuccess(router);
+        toast.success(
+          result.mode === "login" ? "Signed in successfully" : "Account created",
+        );
+        navigateAfterPhoneOtpAuth(router, {
+          playerExists: result.playerExists,
+        });
       } catch (submitError) {
         setError(getApiErrorMessage(submitError, "Invalid OTP. Please try again."));
         otpRef.current?.focus(0);
@@ -112,7 +121,7 @@ export function OtpVerificationForm() {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, phonePayload, router],
+    [isSubmitting, phoneSession, router],
   );
 
   const onSubmit = async (event: FormEvent) => {
@@ -126,11 +135,32 @@ export function OtpVerificationForm() {
   };
 
   const onResend = useCallback(async () => {
-    if (secondsLeft > 0 || isResending || !phonePayload) return;
+    if (secondsLeft > 0 || isResending || !phoneSession?.phone_code || !phoneSession.mobile_number) {
+      return;
+    }
 
     setIsResending(true);
     try {
-      await sendOtp(phonePayload);
+      const sendOtpResponse = await sendOtp({
+        phone_code: phoneSession.phone_code,
+        mobile_number: phoneSession.mobile_number,
+      });
+      const { registered, playerExists } = parseSendOtpFlags(sendOtpResponse);
+
+      safeSessionSetItem(
+        LOGIN_PHONE_STORAGE_KEY,
+        JSON.stringify({
+          ...phoneSession,
+          registered,
+          player_exists: playerExists,
+        }),
+      );
+      setPhoneSession((current) =>
+        current
+          ? { ...current, registered, player_exists: playerExists }
+          : current,
+      );
+
       setDigits(createDefaultOtpDigits(OTP_LENGTH));
       setError(null);
       setSecondsLeft(RESEND_COOLDOWN_SECONDS);
@@ -143,7 +173,7 @@ export function OtpVerificationForm() {
     } finally {
       setIsResending(false);
     }
-  }, [isResending, phonePayload, secondsLeft]);
+  }, [isResending, phoneSession, secondsLeft]);
 
   if (phoneLabel === null) {
     return (
@@ -154,12 +184,18 @@ export function OtpVerificationForm() {
   }
 
   const canResend = secondsLeft <= 0 && !isResending;
+  const isRegistered = Boolean(phoneSession?.registered);
 
   return (
     <div className="space-y-4 sm:space-y-5">
       <p className="text-center text-sm leading-relaxed text-sportxo-text-muted sm:text-[0.9375rem]">
         Enter the 4-digit code sent to{" "}
         <span className="font-semibold text-sportxo-navy">{phoneLabel}</span>
+      </p>
+      <p className="text-center text-xs text-sportxo-text-muted">
+        {isRegistered
+          ? "This number is registered. We will sign you in after verification."
+          : "This number is new. We will create your account after verification."}
       </p>
 
       <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5" noValidate>
@@ -182,7 +218,11 @@ export function OtpVerificationForm() {
         </div>
 
         <AuthPrimaryButton type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Verifying…" : "Verify & Continue"}
+          {isSubmitting
+            ? "Verifying…"
+            : isRegistered
+              ? "Verify & Sign In"
+              : "Verify & Create Account"}
         </AuthPrimaryButton>
       </form>
 

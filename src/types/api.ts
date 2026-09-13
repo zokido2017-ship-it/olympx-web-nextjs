@@ -69,6 +69,13 @@ export type SendOtpRequest = {
   mobile_number: string;
 };
 
+export type SendOtpResponse = {
+  message?: string;
+  registered?: boolean;
+  player_exists?: boolean;
+  player_exist?: boolean;
+};
+
 export type ValidateOtpRequest = SendOtpRequest & {
   otp: string;
 };

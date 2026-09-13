@@ -72,3 +72,16 @@ export function navigateAfterSignupSuccess(router: ClientAuthRouter): void {
   clearPlayerProfileComplete();
   router.push(PLAYER_PROFILE_PATH);
 }
+
+/** Routes after OTP auth based on whether the player profile already exists. */
+export function navigateAfterPhoneOtpAuth(
+  router: ClientAuthRouter,
+  options: { playerExists: boolean },
+): void {
+  if (options.playerExists) {
+    navigateAfterAuthSuccess(router);
+    return;
+  }
+
+  navigateAfterSignupSuccess(router);
+}

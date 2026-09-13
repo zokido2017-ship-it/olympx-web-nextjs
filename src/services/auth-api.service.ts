@@ -4,12 +4,19 @@ import type {
   RegisterRequest,
   RegisterResponse,
   SendOtpRequest,
+  SendOtpResponse,
   ValidateOtpRequest,
   ValidateOtpResponse,
 } from "@/types/api";
 
-export async function sendOtp(payload: SendOtpRequest): Promise<void> {
-  await apiClient.post("/auth/send-otp", payload);
+export async function sendOtp(
+  payload: SendOtpRequest,
+): Promise<SendOtpResponse> {
+  const { data } = await apiClient.post<SendOtpResponse>(
+    "/auth/send-otp",
+    payload,
+  );
+  return data;
 }
 
 export async function validateOtp(

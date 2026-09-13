@@ -18,6 +18,8 @@ export type StoredLoginPhone = {
   phoneNumber: string;
   phone_code?: string;
   mobile_number?: string;
+  registered?: boolean;
+  player_exists?: boolean;
 };
 
 export type SignupSession = {
@@ -31,6 +33,8 @@ export type SignupSession = {
   first_name?: string;
   last_name?: string;
   googleId?: string;
+  registered?: boolean;
+  player_exists?: boolean;
 };
 
 export const phoneSignupSchema = z.object({

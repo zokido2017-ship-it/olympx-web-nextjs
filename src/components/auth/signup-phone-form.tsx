@@ -17,6 +17,7 @@ import { FieldError } from "@/components/ui/field-error";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
 import {
   safeSessionGetItem,
@@ -78,7 +79,8 @@ export function SignupPhoneForm() {
     const mobile_number = normalizeMobileNumber(values.phoneNumber);
 
     try {
-      await sendOtp({ phone_code, mobile_number });
+      const sendOtpResponse = await sendOtp({ phone_code, mobile_number });
+      const { registered, playerExists } = parseSendOtpFlags(sendOtpResponse);
 
       const nextSession: SignupSession = {
         ...session,
@@ -86,6 +88,8 @@ export function SignupPhoneForm() {
         phoneNumber: values.phoneNumber,
         phone_code,
         mobile_number,
+        registered,
+        player_exists: playerExists,
       };
 
       safeSessionSetItem(SIGNUP_SESSION_STORAGE_KEY, JSON.stringify(nextSession));

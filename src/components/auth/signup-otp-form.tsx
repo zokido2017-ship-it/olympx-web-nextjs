@@ -16,17 +16,19 @@ import {
 } from "@/types/auth";
 import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
 import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
+import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
 import { DUPLICATE_MOBILE_MESSAGE, getApiErrorMessage } from "@/lib/api/errors";
-import { navigateAfterSignupSuccess } from "@/lib/auth-navigation";
+import { navigateAfterPhoneOtpAuth } from "@/lib/auth-navigation";
 import {
   safeSessionGetItem,
   safeSessionRemoveItem,
+  safeSessionSetItem,
 } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
 import {
-  completePhoneRegistration,
+  completePhoneOtpVerification,
   DuplicateMobileRegistrationError,
-} from "@/services/registration.service";
+} from "@/services/phone-auth.service";
 import { FieldError } from "@/components/ui/field-error";
 import { OtpInputGroup, type OtpInputGroupHandle } from "@/components/ui/otp-input-group";
 
@@ -91,9 +93,24 @@ export function SignupOtpForm() {
       setIsSubmitting(true);
       setError(null);
       try {
-        await completePhoneRegistration(signupSession, code);
-        toast.success("Account created");
-        navigateAfterSignupSuccess(router);
+        const result = await completePhoneOtpVerification({
+          otpPayload: {
+            phone_code: signupSession.phone_code,
+            mobile_number: signupSession.mobile_number,
+            otp: code,
+          },
+          registered: Boolean(signupSession.registered),
+          playerExists: Boolean(signupSession.player_exists),
+          signupSession,
+        });
+
+        safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
+        toast.success(
+          result.mode === "login" ? "Signed in successfully" : "Account created",
+        );
+        navigateAfterPhoneOtpAuth(router, {
+          playerExists: result.playerExists,
+        });
       } catch (submitError) {
         const message =
           submitError instanceof DuplicateMobileRegistrationError
@@ -126,10 +143,20 @@ export function SignupOtpForm() {
 
     setIsResending(true);
     try {
-      await sendOtp({
+      const sendOtpResponse = await sendOtp({
         phone_code: signupSession.phone_code,
         mobile_number: signupSession.mobile_number,
       });
+      const { registered, playerExists } = parseSendOtpFlags(sendOtpResponse);
+
+      const nextSession: SignupSession = {
+        ...signupSession,
+        registered,
+        player_exists: playerExists,
+      };
+
+      safeSessionSetItem(SIGNUP_SESSION_STORAGE_KEY, JSON.stringify(nextSession));
+      setSignupSession(nextSession);
       setDigits(createDefaultOtpDigits(OTP_LENGTH));
       setError(null);
       setSecondsLeft(RESEND_COOLDOWN_SECONDS);
@@ -153,12 +180,18 @@ export function SignupOtpForm() {
   }
 
   const canResend = secondsLeft <= 0 && !isResending;
+  const isRegistered = Boolean(signupSession?.registered);
 
   return (
     <div className="space-y-4 sm:space-y-5">
       <p className="text-center text-sm leading-relaxed text-sportxo-text-muted sm:text-[0.9375rem]">
         Enter the 4-digit code sent to{" "}
         <span className="font-semibold text-sportxo-navy">{phoneLabel}</span>
+      </p>
+      <p className="text-center text-xs text-sportxo-text-muted">
+        {isRegistered
+          ? "This number is already registered. We will sign you in after verification."
+          : "We will create your account after verification."}
       </p>
 
       <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5" noValidate>
@@ -181,7 +214,11 @@ export function SignupOtpForm() {
         </div>
 
         <AuthPrimaryButton type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Creating account…" : "Verify & Create Account"}
+          {isSubmitting
+            ? "Verifying…"
+            : isRegistered
+              ? "Verify & Sign In"
+              : "Verify & Create Account"}
         </AuthPrimaryButton>
       </form>
 

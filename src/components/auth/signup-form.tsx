@@ -17,6 +17,7 @@ import { FieldError } from "@/components/ui/field-error";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
 import { safeSessionSetItem } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
@@ -48,7 +49,8 @@ export function SignupForm() {
     const mobile_number = normalizeMobileNumber(values.phoneNumber);
 
     try {
-      await sendOtp({ phone_code, mobile_number });
+      const sendOtpResponse = await sendOtp({ phone_code, mobile_number });
+      const { registered, playerExists } = parseSendOtpFlags(sendOtpResponse);
 
       persistSignupSession({
         mode: "phone",
@@ -56,6 +58,8 @@ export function SignupForm() {
         phoneNumber: values.phoneNumber,
         phone_code,
         mobile_number,
+        registered,
+        player_exists: playerExists,
       });
 
       toast.success("OTP sent");

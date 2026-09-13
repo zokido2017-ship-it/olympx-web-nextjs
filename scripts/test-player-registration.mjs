@@ -83,6 +83,11 @@ async function main() {
     body: { phone_code: phoneCode, mobile_number: mobileNumber },
   });
   assert("send-otp", sendOtp.ok, sendOtp.data);
+  assert(
+    "send-otp-new-user-flags",
+    sendOtp.data?.registered === false && sendOtp.data?.player_exists === false,
+    sendOtp.data,
+  );
 
   const register = await request("/auth/register", {
     method: "POST",
@@ -96,6 +101,17 @@ async function main() {
     },
   });
   assert("register-user", register.ok && register.data?.id, register.data);
+
+  const sendOtpExisting = await request("/auth/send-otp", {
+    method: "POST",
+    body: { phone_code: phoneCode, mobile_number: mobileNumber },
+  });
+  assert(
+    "send-otp-existing-user-flags",
+    sendOtpExisting.data?.registered === true &&
+      sendOtpExisting.data?.player_exists === true,
+    sendOtpExisting.data,
+  );
 
   const duplicateRegister = await request("/auth/register", {
     method: "POST",

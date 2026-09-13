@@ -17,6 +17,7 @@ import { FieldError } from "@/components/ui/field-error";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
 import { getSignupEntryPath } from "@/lib/auth-navigation";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
 import { safeSessionSetItem } from "@/lib/safe-storage";
@@ -44,10 +45,11 @@ export function LoginForm() {
     const mobileNumber = normalizeMobileNumber(values.phoneNumber);
 
     try {
-      await sendOtp({
+      const sendOtpResponse = await sendOtp({
         phone_code: phoneCode,
         mobile_number: mobileNumber,
       });
+      const { registered, playerExists } = parseSendOtpFlags(sendOtpResponse);
 
       safeSessionSetItem(
         LOGIN_PHONE_STORAGE_KEY,
@@ -56,6 +58,8 @@ export function LoginForm() {
           phoneNumber: values.phoneNumber,
           phone_code: phoneCode,
           mobile_number: mobileNumber,
+          registered,
+          player_exists: playerExists,
         }),
       );
       toast.success("OTP sent");
