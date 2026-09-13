@@ -15,16 +15,18 @@ import {
   type SignupSession,
 } from "@/types/auth";
 import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
-import { createDefaultOtpDigits, DEFAULT_OTP, isDevOtpCode } from "@/lib/auth-otp";
-import { getAuthToken } from "@/lib/auth-session";
-import { getApiErrorMessage } from "@/lib/api/errors";
+import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
+import { DUPLICATE_MOBILE_MESSAGE, getApiErrorMessage } from "@/lib/api/errors";
 import { navigateAfterSignupSuccess } from "@/lib/auth-navigation";
 import {
   safeSessionGetItem,
   safeSessionRemoveItem,
 } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
-import { completePhoneRegistration } from "@/services/registration.service";
+import {
+  completePhoneRegistration,
+  DuplicateMobileRegistrationError,
+} from "@/services/registration.service";
 import { FieldError } from "@/components/ui/field-error";
 import { OtpInputGroup, type OtpInputGroupHandle } from "@/components/ui/otp-input-group";
 
@@ -91,16 +93,16 @@ export function SignupOtpForm() {
       try {
         await completePhoneRegistration(signupSession, code);
         toast.success("Account created");
-        if (!getAuthToken() && isDevOtpCode(code)) {
-          toast.warning(
-            "Use the OTP from your SMS when you log in to save your player profile to the server.",
-          );
-        }
         navigateAfterSignupSuccess(router);
       } catch (submitError) {
-        setError(
-          getApiErrorMessage(submitError, "Could not complete registration."),
-        );
+        const message =
+          submitError instanceof DuplicateMobileRegistrationError
+            ? DUPLICATE_MOBILE_MESSAGE
+            : getApiErrorMessage(submitError, "Could not complete registration.");
+        setError(message);
+        if (submitError instanceof DuplicateMobileRegistrationError) {
+          toast.error(DUPLICATE_MOBILE_MESSAGE);
+        }
         otpRef.current?.focus(0);
       } finally {
         setIsSubmitting(false);
@@ -214,6 +216,17 @@ export function SignupOtpForm() {
             Change phone number
           </Link>
         </p>
+
+        {error === DUPLICATE_MOBILE_MESSAGE ? (
+          <p>
+            <Link
+              href="/login"
+              className="font-bold text-sportxo-blue transition-colors hover:text-[#1d4ed8]"
+            >
+              Log in with this number
+            </Link>
+          </p>
+        ) : null}
       </div>
     </div>
   );

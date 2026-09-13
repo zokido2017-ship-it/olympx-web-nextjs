@@ -64,7 +64,7 @@ export function clearRegisteredUser(): void {
 }
 
 export function isAuthenticated(): boolean {
-  return Boolean(getAuthToken()) || readFlag(AUTH_SESSION_STORAGE_KEY);
+  return Boolean(getAuthToken());
 }
 
 export function markAuthenticated(): void {

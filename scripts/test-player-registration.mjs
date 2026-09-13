@@ -97,6 +97,25 @@ async function main() {
   });
   assert("register-user", register.ok && register.data?.id, register.data);
 
+  const duplicateRegister = await request("/auth/register", {
+    method: "POST",
+    body: {
+      phone_code: phoneCode,
+      mobile_number: mobileNumber,
+      first_name: "E2E",
+      last_name: "Player",
+      display_name: "E2E Player",
+    },
+  });
+  assert(
+    "register-duplicate-blocked",
+    duplicateRegister.status === 422 &&
+      String(duplicateRegister.data?.message || "")
+        .toLowerCase()
+        .includes("taken"),
+    duplicateRegister.data,
+  );
+
   const userId = register.data?.id;
   const playerWithoutAuth = await request("/players", {
     method: "POST",

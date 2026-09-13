@@ -16,7 +16,7 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
 import { navigateAfterAuthSuccess } from "@/lib/auth-navigation";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
-import { verifyOtpWithDevBypass } from "@/lib/verify-otp";
+import { completePhoneLogin } from "@/services/login.service";
 import {
   safeSessionGetItem,
   safeSessionRemoveItem,
@@ -97,7 +97,7 @@ export function OtpVerificationForm() {
       setIsSubmitting(true);
       setError(null);
       try {
-        await verifyOtpWithDevBypass({
+        await completePhoneLogin({
           ...phonePayload,
           otp: code,
         });

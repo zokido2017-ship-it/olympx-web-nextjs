@@ -15,7 +15,7 @@ export const USE_MOCK_AUTH_NAVIGATION = false;
  * UI dev: open `/player-profile` directly without login or profile checks.
  * Set to `false` to re-enable `RequirePlayerProfileAccess` (with API auth).
  */
-export const BYPASS_PLAYER_PROFILE_ROUTE_GUARD = true;
+export const BYPASS_PLAYER_PROFILE_ROUTE_GUARD = false;
 
 /**
  * UI dev: "Sign up" on login goes straight to `/player-profile` (skip `/signup`).
@@ -69,7 +69,6 @@ export function navigateAfterAuthSuccess(router: ClientAuthRouter): void {
  * their profile. Teams and organisations are created later from the dashboard.
  */
 export function navigateAfterSignupSuccess(router: ClientAuthRouter): void {
-  markAuthenticated();
   clearPlayerProfileComplete();
   router.push(PLAYER_PROFILE_PATH);
 }
