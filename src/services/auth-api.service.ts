@@ -37,14 +37,25 @@ export async function fetchCurrentUser(): Promise<ApiUser> {
   return data;
 }
 
+function readToken(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 /** Extracts a Sanctum bearer token from common auth response shapes. */
 export function extractAuthToken(
   response: ValidateOtpResponse | Record<string, unknown>,
 ): string | null {
-  const token =
-    (typeof response.token === "string" && response.token) ||
-    (typeof response.access_token === "string" && response.access_token) ||
-    null;
+  const record = response as Record<string, unknown>;
+  const direct = readToken(record.token) || readToken(record.access_token);
+  if (direct) {
+    return direct;
+  }
 
-  return token?.trim() || null;
+  const data = record.data;
+  if (data && typeof data === "object") {
+    const nested = data as Record<string, unknown>;
+    return readToken(nested.token) || readToken(nested.access_token);
+  }
+
+  return null;
 }

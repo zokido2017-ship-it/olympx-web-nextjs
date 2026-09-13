@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/client";
-import { getAuthToken } from "@/lib/auth-session";
+import { getAuthToken, getRegisteredUser } from "@/lib/auth-session";
 import { splitFullName } from "@/lib/phone";
 import { fetchCurrentUser } from "@/services/auth-api.service";
 import type {
@@ -116,11 +116,25 @@ function personalFieldsToPlayerPayload(
   };
 }
 
+function registeredUserToApiUser(
+  registered: NonNullable<ReturnType<typeof getRegisteredUser>>,
+): ApiUser {
+  return {
+    id: registered.id,
+    first_name: registered.first_name,
+    last_name: registered.last_name,
+    full_name: registered.full_name,
+    display_name: registered.display_name,
+    contact_email: registered.contact_email,
+  };
+}
+
 export async function loadAuthenticatedUser(): Promise<ApiUser | null> {
   try {
     return await fetchCurrentUser();
   } catch {
-    return null;
+    const registered = getRegisteredUser();
+    return registered ? registeredUserToApiUser(registered) : null;
   }
 }
 
@@ -171,7 +185,11 @@ export async function savePlayerWizardStep({
     return null;
   }
 
-  const resolvedUser = user ?? (await loadAuthenticatedUser());
+  const registeredUser = getRegisteredUser();
+  const resolvedUser =
+    user ??
+    (await loadAuthenticatedUser()) ??
+    (registeredUser ? registeredUserToApiUser(registeredUser) : null);
   if (!resolvedUser) {
     return null;
   }

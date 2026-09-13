@@ -15,7 +15,8 @@ import {
   type SignupSession,
 } from "@/types/auth";
 import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
-import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
+import { createDefaultOtpDigits, DEFAULT_OTP, isDevOtpCode } from "@/lib/auth-otp";
+import { getAuthToken } from "@/lib/auth-session";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { navigateAfterSignupSuccess } from "@/lib/auth-navigation";
 import {
@@ -90,6 +91,11 @@ export function SignupOtpForm() {
       try {
         await completePhoneRegistration(signupSession, code);
         toast.success("Account created");
+        if (!getAuthToken() && isDevOtpCode(code)) {
+          toast.warning(
+            "Use the OTP from your SMS when you log in to save your player profile to the server.",
+          );
+        }
         navigateAfterSignupSuccess(router);
       } catch (submitError) {
         setError(

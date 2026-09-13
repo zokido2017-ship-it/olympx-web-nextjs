@@ -6,9 +6,21 @@ import {
 
 export const AUTH_SESSION_STORAGE_KEY = "sportxo_auth_session";
 export const AUTH_TOKEN_STORAGE_KEY = "sportxo_auth_token";
+export const REGISTERED_USER_STORAGE_KEY = "sportxo_registered_user";
 export const PLAYER_PROFILE_COMPLETE_STORAGE_KEY =
   "sportxo_player_profile_complete";
 export const PLAYER_ID_STORAGE_KEY = "sportxo_player_id";
+
+export type StoredRegisteredUser = {
+  id: number;
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
+  display_name?: string | null;
+  contact_email?: string | null;
+  phone_code?: string | null;
+  mobile_number?: string | null;
+};
 
 export const PLAYER_PROFILE_PATH = "/player-profile";
 export const DASHBOARD_PATH = "/dashboard";
@@ -31,6 +43,26 @@ export function clearAuthToken(): void {
   safeLocalRemoveItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
+export function setRegisteredUser(user: StoredRegisteredUser): void {
+  safeLocalSetItem(REGISTERED_USER_STORAGE_KEY, JSON.stringify(user));
+}
+
+export function getRegisteredUser(): StoredRegisteredUser | null {
+  const raw = safeLocalGetItem(REGISTERED_USER_STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as StoredRegisteredUser;
+    return typeof parsed.id === "number" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearRegisteredUser(): void {
+  safeLocalRemoveItem(REGISTERED_USER_STORAGE_KEY);
+}
+
 export function isAuthenticated(): boolean {
   return Boolean(getAuthToken()) || readFlag(AUTH_SESSION_STORAGE_KEY);
 }
@@ -41,6 +73,7 @@ export function markAuthenticated(): void {
 
 export function clearAuthenticated(): void {
   clearAuthToken();
+  clearRegisteredUser();
   safeLocalRemoveItem(AUTH_SESSION_STORAGE_KEY);
 }
 

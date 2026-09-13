@@ -376,13 +376,30 @@ export function PlayerProfileWizard({
   };
 
   const onComplete = async () => {
+    const validationError = validateStep(3);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
     setIsCompleting(true);
     try {
-      await persistWizard(3, true);
+      const player = await persistWizard(3, true);
+
+      if (getAuthToken() && !player) {
+        throw new Error(
+          "Your profile could not be saved to the server. Sign in with your SMS OTP and try again.",
+        );
+      }
+
       clearPlayerWizardDraft();
       safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
       markPlayerProfileComplete();
-      toast.success("Player profile completed");
+      toast.success(
+        player
+          ? "Player profile saved successfully"
+          : "Player profile completed locally",
+      );
       router.push(onCompleteRedirect);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not complete your profile."));

@@ -1,6 +1,10 @@
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { isDevOtpCode } from "@/lib/auth-otp";
-import { markAuthenticated, setAuthToken } from "@/lib/auth-session";
+import {
+  markAuthenticated,
+  setAuthToken,
+  setRegisteredUser,
+} from "@/lib/auth-session";
 import { splitFullName } from "@/lib/phone";
 import type { SignupSession } from "@/types/auth";
 import {
@@ -9,6 +13,17 @@ import {
   validateOtp,
 } from "@/services/auth-api.service";
 import type { ValidateOtpRequest } from "@/types/api";
+
+async function tryValidateOtpForToken(
+  payload: ValidateOtpRequest,
+): Promise<string | null> {
+  try {
+    const response = await validateOtp(payload);
+    return extractAuthToken(response);
+  } catch {
+    return null;
+  }
+}
 
 export async function completePhoneRegistration(
   session: SignupSession,
@@ -20,15 +35,10 @@ export async function completePhoneRegistration(
     otp,
   };
 
-  let token: string | null = null;
+  let token = await tryValidateOtpForToken(otpPayload);
 
-  try {
-    const response = await validateOtp(otpPayload);
-    token = extractAuthToken(response);
-  } catch {
-    if (!isDevOtpCode(otp)) {
-      throw new Error("Invalid OTP. Please try again.");
-    }
+  if (!token && !isDevOtpCode(otp)) {
+    throw new Error("Invalid OTP. Please try again.");
   }
 
   const names = session.first_name
@@ -38,8 +48,10 @@ export async function completePhoneRegistration(
       }
     : splitFullName(session.fullName || "Sportxo User");
 
+  let registeredUserId: number | null = null;
+
   try {
-    await registerUser({
+    const registeredUser = await registerUser({
       phone_code: session.phone_code,
       mobile_number: session.mobile_number,
       first_name: names.first_name,
@@ -47,6 +59,22 @@ export async function completePhoneRegistration(
       display_name: session.fullName || names.first_name,
       contact_email: session.email,
     });
+
+    registeredUserId = registeredUser.id;
+    setRegisteredUser({
+      id: registeredUser.id,
+      first_name: registeredUser.first_name,
+      last_name: registeredUser.last_name,
+      full_name: registeredUser.full_name,
+      display_name: registeredUser.display_name,
+      contact_email: registeredUser.contact_email,
+      phone_code: session.phone_code,
+      mobile_number: session.mobile_number,
+    });
+
+    if (!token) {
+      token = extractAuthToken(registeredUser as Record<string, unknown>);
+    }
   } catch (error) {
     const message = getApiErrorMessage(error, "");
     const duplicate =
@@ -58,23 +86,21 @@ export async function completePhoneRegistration(
     }
   }
 
+  if (!token) {
+    token = await tryValidateOtpForToken(otpPayload);
+  }
+
   if (token) {
     setAuthToken(token);
     return;
   }
 
-  if (isDevOtpCode(otp)) {
-    try {
-      const response = await validateOtp(otpPayload);
-      const retryToken = extractAuthToken(response);
-      if (retryToken) {
-        setAuthToken(retryToken);
-        return;
-      }
-    } catch {
-      /* register succeeded; continue with local session */
-    }
+  if (isDevOtpCode(otp) && registeredUserId) {
+    markAuthenticated();
+    return;
   }
 
-  markAuthenticated();
+  throw new Error(
+    "Could not verify your phone number. Enter the OTP from your SMS and try again.",
+  );
 }
