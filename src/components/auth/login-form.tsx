@@ -19,6 +19,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
 import { getSignupEntryPath } from "@/lib/auth-navigation";
+import { getSendOtpGuidance } from "@/lib/phone-auth-flow";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
 import { safeSessionSetItem } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
@@ -50,11 +51,10 @@ export function LoginForm() {
         mobile_number: mobileNumber,
       });
       const { registered, playerExists } = parseSendOtpFlags(sendOtpResponse);
-
-      if (!registered) {
-        toast.error("No account found with this number. Please create an account.");
-        return;
-      }
+      const guidance = getSendOtpGuidance("login", {
+        registered,
+        playerExists,
+      });
 
       safeSessionSetItem(
         LOGIN_PHONE_STORAGE_KEY,
@@ -67,7 +67,11 @@ export function LoginForm() {
           player_exists: playerExists,
         }),
       );
-      toast.success("OTP sent");
+      if (guidance.toast === "info") {
+        toast.info(guidance.message);
+      } else {
+        toast.success(guidance.message);
+      }
       router.push("/login/verify");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not send OTP. Please try again."));

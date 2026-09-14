@@ -97,29 +97,21 @@ export function OtpVerificationForm() {
       setIsSubmitting(true);
       setError(null);
       try {
-        if (!phoneSession.registered) {
-          setError("No account found with this number. Please create an account.");
-          return;
-        }
-
         const result = await completePhoneOtpVerification({
           otpPayload: {
             phone_code: phoneSession.phone_code,
             mobile_number: phoneSession.mobile_number,
             otp: code,
           },
-          registered: true,
+          registered: Boolean(phoneSession.registered),
           playerExists: Boolean(phoneSession.player_exists),
         });
 
-        if (result.mode !== "login") {
-          setError("No account found with this number. Please create an account.");
-          return;
-        }
-
         safeSessionRemoveItem(LOGIN_PHONE_STORAGE_KEY);
         toast.success(
-          result.mode === "login" ? "Signed in successfully" : "Account created",
+          result.mode === "login"
+            ? "Signed in successfully"
+            : "Phone verified — complete your profile",
         );
         navigateAfterPhoneOtpAuth(router, {
           playerExists: result.playerExists,

@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
+import { getSendOtpGuidance } from "@/lib/phone-auth-flow";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
 import { safeSessionSetItem } from "@/lib/safe-storage";
 import { sendOtp } from "@/services/auth-api.service";
@@ -51,6 +52,10 @@ export function SignupForm() {
     try {
       const sendOtpResponse = await sendOtp({ phone_code, mobile_number });
       const { registered, playerExists } = parseSendOtpFlags(sendOtpResponse);
+      const guidance = getSendOtpGuidance("signup", {
+        registered,
+        playerExists,
+      });
 
       persistSignupSession({
         mode: "phone",
@@ -62,7 +67,11 @@ export function SignupForm() {
         player_exists: playerExists,
       });
 
-      toast.success("OTP sent");
+      if (guidance.toast === "info") {
+        toast.info(guidance.message);
+      } else {
+        toast.success(guidance.message);
+      }
       router.push("/signup/verify");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not send OTP. Please try again."));

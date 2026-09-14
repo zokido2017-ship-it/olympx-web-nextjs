@@ -19,6 +19,7 @@ import {
   DASHBOARD_PATH,
   getStoredPlayerId,
   isAuthenticated,
+  markAuthenticated,
   markPlayerProfileComplete,
   setStoredPlayerId,
 } from "@/lib/auth-session";
@@ -143,12 +144,16 @@ export function PlayerProfileWizard({
 
     async function bootstrap() {
       const signupSession = readSignupSession();
+      const verifiedPhone = getVerifiedPhoneSession();
 
       if (signupSession) {
         setFullName(signupSession.fullName ?? "");
         setEmail(signupSession.email ?? "");
         setPhoneNumber(signupSession.phoneNumber ?? "");
         setCountryCode(signupSession.countryCode ?? "+91");
+      } else if (verifiedPhone) {
+        setPhoneNumber(verifiedPhone.phoneNumber);
+        setCountryCode(verifiedPhone.countryCode);
       }
 
       const localDraft = readPlayerWizardDraft();
@@ -177,8 +182,14 @@ export function PlayerProfileWizard({
 
       try {
         const user = await loadAuthenticatedUser();
-        if (!user || cancelled) {
-          setIsBootstrapping(false);
+        if (!user) {
+          if (!cancelled) {
+            setIsBootstrapping(false);
+          }
+          return;
+        }
+
+        if (cancelled) {
           return;
         }
 
@@ -376,6 +387,7 @@ export function PlayerProfileWizard({
 
       setPlayerId(response.player.id);
       setStoredPlayerId(response.player.id);
+      markAuthenticated();
       clearPlayerWizardDraft();
       safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
       markPlayerProfileComplete();

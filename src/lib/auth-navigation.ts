@@ -1,6 +1,7 @@
 import {
   clearPlayerProfileComplete,
   markAuthenticated,
+  markPlayerProfileComplete,
   PLAYER_PROFILE_PATH,
   getPostLoginPath,
 } from "@/lib/auth-session";
@@ -79,6 +80,7 @@ export function navigateAfterPhoneOtpAuth(
   options: { playerExists: boolean },
 ): void {
   if (options.playerExists) {
+    markPlayerProfileComplete();
     navigateAfterAuthSuccess(router);
     return;
   }

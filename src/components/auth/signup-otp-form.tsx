@@ -106,7 +106,9 @@ export function SignupOtpForm() {
 
         safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
         toast.success(
-          result.mode === "login" ? "Signed in successfully" : "Account created",
+          result.mode === "login"
+            ? "Signed in successfully"
+            : "Phone verified — complete your profile",
         );
         navigateAfterPhoneOtpAuth(router, {
           playerExists: result.playerExists,
