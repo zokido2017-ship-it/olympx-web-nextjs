@@ -51,6 +51,11 @@ export function LoginForm() {
       });
       const { registered, playerExists } = parseSendOtpFlags(sendOtpResponse);
 
+      if (!registered) {
+        toast.error("No account found with this number. Please create an account.");
+        return;
+      }
+
       safeSessionSetItem(
         LOGIN_PHONE_STORAGE_KEY,
         JSON.stringify({

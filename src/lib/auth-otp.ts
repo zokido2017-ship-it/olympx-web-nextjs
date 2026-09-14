@@ -1,21 +1,27 @@
-/** Default OTP for development and QA (pre-filled in forms). */
+/** Default OTP for local development (only used when dev OTP is enabled). */
 export const DEFAULT_OTP =
-  process.env.NEXT_PUBLIC_DEFAULT_OTP?.trim() || "0000";
+  process.env.NEXT_PUBLIC_DEFAULT_OTP?.trim() || "2468";
 
-/** When true, `DEFAULT_OTP` can complete auth if the API rejects it. */
-export function isDevOtpBypassEnabled(): boolean {
+/** When true, OTP forms are pre-filled and the default OTP hint is shown. */
+export function isDevOtpEnabled(): boolean {
   const flag = process.env.NEXT_PUBLIC_ENABLE_DEV_OTP?.trim().toLowerCase();
-  if (flag === "false" || flag === "0") {
-    return false;
-  }
-  return true;
+  return flag === "true" || flag === "1";
 }
 
-export function isDevOtpCode(otp: string): boolean {
-  return isDevOtpBypassEnabled() && otp.trim() === DEFAULT_OTP;
+/** @deprecated Dev bypass is disabled — OTP must be validated by the API. */
+export function isDevOtpBypassEnabled(): boolean {
+  return false;
+}
+
+export function isDevOtpCode(_otp: string): boolean {
+  return false;
 }
 
 export function createDefaultOtpDigits(length = 4): string[] {
+  if (!isDevOtpEnabled()) {
+    return Array.from({ length }, () => "");
+  }
+
   const digits = DEFAULT_OTP.replace(/\D/g, "").slice(0, length);
   if (digits.length !== length) {
     return Array.from({ length }, () => "");

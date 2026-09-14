@@ -7,9 +7,9 @@ import {
   setVerifiedPhoneSession,
   type VerifiedPhoneSession,
 } from "@/lib/auth-verified-phone";
-import { markAuthenticated } from "@/lib/auth-session";
+import { markAuthenticated, setAuthToken, setRegisteredUser } from "@/lib/auth-session";
 import type { SignupSession } from "@/types/auth";
-import { validateOtp } from "@/services/auth-api.service";
+import { extractAuthToken, validateOtp } from "@/services/auth-api.service";
 import type { ValidateOtpRequest } from "@/types/api";
 
 export class DuplicateMobileRegistrationError extends Error {
@@ -81,6 +81,15 @@ export async function completePhoneOtpVerification({
     resolvedPlayerExists
   ) {
     throw new DuplicateMobileRegistrationError();
+  }
+
+  const authToken = extractAuthToken(otpResponse);
+  if (authToken) {
+    setAuthToken(authToken);
+  }
+
+  if (otpResponse.user && typeof otpResponse.user.id === "number") {
+    setRegisteredUser(otpResponse.user);
   }
 
   setVerifiedPhoneSession(

@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { LOGIN_PHONE_STORAGE_KEY, type StoredLoginPhone } from "@/types/auth";
 import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
 import { getApiErrorMessage } from "@/lib/api/errors";
-import { createDefaultOtpDigits, DEFAULT_OTP } from "@/lib/auth-otp";
+import { createDefaultOtpDigits, DEFAULT_OTP, isDevOtpEnabled } from "@/lib/auth-otp";
 import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
 import { navigateAfterPhoneOtpAuth } from "@/lib/auth-navigation";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
@@ -97,15 +97,25 @@ export function OtpVerificationForm() {
       setIsSubmitting(true);
       setError(null);
       try {
+        if (!phoneSession.registered) {
+          setError("No account found with this number. Please create an account.");
+          return;
+        }
+
         const result = await completePhoneOtpVerification({
           otpPayload: {
             phone_code: phoneSession.phone_code,
             mobile_number: phoneSession.mobile_number,
             otp: code,
           },
-          registered: Boolean(phoneSession.registered),
+          registered: true,
           playerExists: Boolean(phoneSession.player_exists),
         });
+
+        if (result.mode !== "login") {
+          setError("No account found with this number. Please create an account.");
+          return;
+        }
 
         safeSessionRemoveItem(LOGIN_PHONE_STORAGE_KEY);
         toast.success(
@@ -212,9 +222,11 @@ export function OtpVerificationForm() {
             disabled={isSubmitting}
           />
           <FieldError message={error ?? undefined} />
-          <p className="text-center text-xs text-sportxo-text-muted">
-            Default OTP: <span className="font-semibold text-sportxo-navy">{DEFAULT_OTP}</span>
-          </p>
+          {isDevOtpEnabled() ? (
+            <p className="text-center text-xs text-sportxo-text-muted">
+              Dev OTP: <span className="font-semibold text-sportxo-navy">{DEFAULT_OTP}</span>
+            </p>
+          ) : null}
         </div>
 
         <AuthPrimaryButton type="submit" disabled={isSubmitting}>
