@@ -14,14 +14,20 @@ import { PlayerProfileWizardStepper } from "@/components/player-setup/player-pro
 import { SportsInformationSection } from "@/components/player-setup/sports-information-section";
 import { SPORTS_CATALOG, type SportOption } from "@/constants/sports-catalog";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { getVerifiedPhoneSession } from "@/lib/auth-verified-phone";
 import {
   DASHBOARD_PATH,
-  getAuthToken,
   getStoredPlayerId,
   isAuthenticated,
   markPlayerProfileComplete,
   setStoredPlayerId,
 } from "@/lib/auth-session";
+import {
+  mapGenderToApi,
+  mapNationalityToApi,
+  parseMetricValue,
+  resolveConnectedApp,
+} from "@/lib/player-profile-mappers";
 import { cn } from "@/lib/cn";
 import {
   clearPlayerWizardDraft,
@@ -35,8 +41,8 @@ import {
 import {
   applyPlayerToWizardState,
   loadAuthenticatedUser,
-  savePlayerWizardStep,
 } from "@/services/player-profile-api.service";
+import { registerPlayerProfile } from "@/services/player-register.service";
 import { fetchSportsFromApi } from "@/services/sports-api.service";
 import type { SignupSession } from "@/types/auth";
 import { SIGNUP_SESSION_STORAGE_KEY } from "@/types/auth";
@@ -99,6 +105,9 @@ export function PlayerProfileWizard({
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [nationality, setNationality] = useState("");
   const [gender, setGender] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [selectedSportIds, setSelectedSportIds] = useState<string[]>([]);
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
@@ -161,7 +170,7 @@ export function PlayerProfileWizard({
         >);
       }
 
-      if (!isAuthenticated() || !getAuthToken()) {
+      if (!isAuthenticated()) {
         setIsBootstrapping(false);
         return;
       }
@@ -308,53 +317,19 @@ export function PlayerProfileWizard({
     ],
   );
 
-  const persistWizard = useCallback(
-    async (nextStep: number, profileComplete: boolean) => {
-      saveLocalDraft(nextStep);
-
-      const player = await savePlayerWizardStep({
-        playerId,
-        personal: {
-          fullName,
-          email,
-          dateOfBirth,
-          nationality,
-          gender,
-        },
-        sportIds: selectedSportIds,
-        fitness: {
-          height,
-          weight,
-          connections,
-        },
-        setupStep: nextStep,
-        profileComplete,
-      });
-
-      if (player) {
-        setPlayerId(player.id);
-        setStoredPlayerId(player.id);
+  const handlePhotoChange = useCallback(
+    (file: File | null, previewUrl: string | null) => {
+      if (photoPreview && photoPreview !== previewUrl) {
+        URL.revokeObjectURL(photoPreview);
       }
-
-      return player;
+      setPhotoFile(file);
+      setPhotoPreview(previewUrl);
+      setPhotoError(null);
     },
-    [
-      connections,
-      countryCode,
-      dateOfBirth,
-      email,
-      fullName,
-      gender,
-      height,
-      nationality,
-      phoneNumber,
-      playerId,
-      selectedSportIds,
-      weight,
-    ],
+    [photoPreview],
   );
 
-  const onContinue = async () => {
+  const onContinue = () => {
     const validationError = validateStep(step);
     if (validationError) {
       toast.error(validationError);
@@ -364,15 +339,6 @@ export function PlayerProfileWizard({
     const nextStep = step + 1;
     saveLocalDraft(nextStep);
     goToStep(nextStep);
-
-    setIsSaving(true);
-    try {
-      await persistWizard(nextStep, false);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const onComplete = async () => {
@@ -384,22 +350,36 @@ export function PlayerProfileWizard({
 
     setIsCompleting(true);
     try {
-      const player = await persistWizard(3, true);
-
-      if (getAuthToken() && !player) {
-        throw new Error(
-          "Your profile could not be saved to the server. Sign in with your SMS OTP and try again.",
-        );
+      const verifiedPhone = getVerifiedPhoneSession();
+      if (!verifiedPhone) {
+        throw new Error("Please verify your phone number before completing registration.");
       }
 
+      const sportIds = selectedSportIds
+        .map((id) => Number.parseInt(id, 10))
+        .filter((id) => Number.isFinite(id));
+
+      const response = await registerPlayerProfile({
+        phone_code: verifiedPhone.phone_code,
+        mobile_number: verifiedPhone.mobile_number,
+        display_name: fullName.trim(),
+        contact_email: email.trim() || undefined,
+        dob: dateOfBirth || undefined,
+        gender: mapGenderToApi(gender),
+        nationality: mapNationalityToApi(nationality),
+        height_cm: parseMetricValue(height),
+        weight_kg: parseMetricValue(weight),
+        sportIds,
+        connected_app: resolveConnectedApp(connections),
+        photo: photoFile,
+      });
+
+      setPlayerId(response.player.id);
+      setStoredPlayerId(response.player.id);
       clearPlayerWizardDraft();
       safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);
       markPlayerProfileComplete();
-      toast.success(
-        player
-          ? "Player profile saved successfully"
-          : "Player profile completed locally",
-      );
+      toast.success("Player registered successfully");
       router.push(onCompleteRedirect);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not complete your profile."));
@@ -464,6 +444,9 @@ export function PlayerProfileWizard({
                     onDateOfBirthChange={setDateOfBirth}
                     onNationalityChange={setNationality}
                     onGenderChange={setGender}
+                    photoPreview={photoPreview}
+                    photoError={photoError}
+                    onPhotoChange={handlePhotoChange}
                   />
                 </WizardStepPanel>
 
@@ -485,7 +468,7 @@ export function PlayerProfileWizard({
                       Fitness Information
                     </h2>
                     <p className="text-sm text-sportxo-text-muted">
-                      Add your fitness details and connect health platforms.
+                      All fields on this step are optional.
                     </p>
                   </div>
                   <FitnessInformationSection

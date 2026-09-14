@@ -95,9 +95,59 @@ export type RegisterRequest = {
 };
 
 export type ValidateOtpResponse = {
+  message?: string;
+  registered?: boolean;
+  player_exists?: boolean;
   token?: string;
   access_token?: string;
   user?: ApiUser;
 };
 
+export type RegisteredPlayerSport = {
+  id: number;
+  name: string;
+  slug: string;
+  type?: string | null;
+  icon_url?: string | null;
+};
+
+export type RegisteredPlayer = {
+  id: number;
+  display_name?: string | null;
+  slug?: string | null;
+  phone_code?: string | null;
+  mobile_number?: string | null;
+  height_cm?: string | number | null;
+  weight_kg?: string | number | null;
+  dob?: string | null;
+  gender?: string | null;
+  nationality?: string | null;
+  contact_email?: string | null;
+  photo_url?: string | null;
+  connected_app?: string | null;
+  ids?: number[];
+  sports?: RegisteredPlayerSport[];
+};
+
+export type RegisterPlayerRequest = {
+  phone_code: string;
+  mobile_number: string;
+  display_name: string;
+  contact_email?: string;
+  dob?: string;
+  gender?: string;
+  nationality?: string;
+  height_cm?: number;
+  weight_kg?: number;
+  sportIds: number[];
+  connected_app?: string;
+  photo?: File | null;
+};
+
+export type RegisterPlayerResponse = {
+  message?: string;
+  player: RegisteredPlayer;
+};
+
+/** @deprecated Legacy JSON register response. */
 export type RegisterResponse = ApiUser;

@@ -3,14 +3,13 @@ import {
   getApiErrorMessage,
   isDuplicateMobileError,
 } from "@/lib/api/errors";
-import { setAuthToken, setRegisteredUser } from "@/lib/auth-session";
-import { splitFullName } from "@/lib/phone";
-import type { SignupSession } from "@/types/auth";
 import {
-  extractAuthToken,
-  registerUser,
-  validateOtp,
-} from "@/services/auth-api.service";
+  setVerifiedPhoneSession,
+  type VerifiedPhoneSession,
+} from "@/lib/auth-verified-phone";
+import { markAuthenticated } from "@/lib/auth-session";
+import type { SignupSession } from "@/types/auth";
+import { validateOtp } from "@/services/auth-api.service";
 import type { ValidateOtpRequest } from "@/types/api";
 
 export class DuplicateMobileRegistrationError extends Error {
@@ -25,20 +24,26 @@ export type PhoneAuthResult = {
   playerExists: boolean;
 };
 
-function buildSignupSessionFromOtp(
-  payload: ValidateOtpRequest,
-  session?: SignupSession | null,
-): SignupSession {
-  if (session) {
-    return session;
-  }
+function buildVerifiedPhoneSession(
+  otpPayload: ValidateOtpRequest,
+  signupSession?: SignupSession | null,
+  flags?: { registered?: boolean; player_exists?: boolean },
+): VerifiedPhoneSession {
+  const countryCode =
+    signupSession?.countryCode ??
+    (otpPayload.phone_code.startsWith("+")
+      ? otpPayload.phone_code
+      : `+${otpPayload.phone_code}`);
+  const phoneNumber =
+    signupSession?.phoneNumber ?? otpPayload.mobile_number;
 
   return {
-    mode: "phone",
-    countryCode: `+${payload.phone_code}`,
-    phoneNumber: payload.mobile_number,
-    phone_code: payload.phone_code,
-    mobile_number: payload.mobile_number,
+    phone_code: otpPayload.phone_code,
+    mobile_number: otpPayload.mobile_number,
+    countryCode,
+    phoneNumber,
+    registered: Boolean(flags?.registered),
+    player_exists: Boolean(flags?.player_exists),
   };
 }
 
@@ -63,81 +68,38 @@ export async function completePhoneOtpVerification({
     throw new Error(getApiErrorMessage(error, "Invalid OTP. Please try again."));
   }
 
-  const token = extractAuthToken(otpResponse);
-  if (!token) {
-    throw new Error(
-      "Could not verify your phone number. Enter the OTP from your SMS and try again.",
-    );
-  }
+  const resolvedRegistered = Boolean(
+    otpResponse.registered ?? registered,
+  );
+  const resolvedPlayerExists = Boolean(
+    otpResponse.player_exists ?? playerExists,
+  );
 
-  if (registered) {
-    setAuthToken(token);
-
-    if (otpResponse.user?.id) {
-      setRegisteredUser({
-        id: otpResponse.user.id,
-        first_name: otpResponse.user.first_name,
-        last_name: otpResponse.user.last_name,
-        full_name: otpResponse.user.full_name,
-        display_name: otpResponse.user.display_name,
-        contact_email: otpResponse.user.contact_email,
-        phone_code: otpPayload.phone_code,
-        mobile_number: otpPayload.mobile_number,
-      });
-    }
-
-    const resolvedPlayerExists =
-      playerExists || Boolean(otpResponse.user?.player?.id);
-
-    return {
-      mode: "login",
-      playerExists: resolvedPlayerExists,
-    };
-  }
-
-  if (otpResponse.user?.id) {
+  if (
+    !resolvedRegistered &&
+    signupSession?.registered &&
+    resolvedPlayerExists
+  ) {
     throw new DuplicateMobileRegistrationError();
   }
 
-  const session = buildSignupSessionFromOtp(otpPayload, signupSession);
-  const names = session.first_name
-    ? {
-        first_name: session.first_name,
-        last_name: session.last_name || session.first_name,
-      }
-    : splitFullName(session.fullName || "Sportxo User");
+  setVerifiedPhoneSession(
+    buildVerifiedPhoneSession(otpPayload, signupSession, {
+      registered: resolvedRegistered,
+      player_exists: resolvedPlayerExists,
+    }),
+  );
+  markAuthenticated();
 
-  try {
-    const registeredUser = await registerUser({
-      phone_code: session.phone_code,
-      mobile_number: session.mobile_number,
-      first_name: names.first_name,
-      last_name: names.last_name,
-      display_name: session.fullName || names.first_name,
-      contact_email: session.email,
-    });
-
-    setRegisteredUser({
-      id: registeredUser.id,
-      first_name: registeredUser.first_name,
-      last_name: registeredUser.last_name,
-      full_name: registeredUser.full_name,
-      display_name: registeredUser.display_name,
-      contact_email: registeredUser.contact_email,
-      phone_code: session.phone_code,
-      mobile_number: session.mobile_number,
-    });
-  } catch (error) {
-    if (isDuplicateMobileError(error)) {
-      throw new DuplicateMobileRegistrationError();
-    }
-    throw error;
+  if (resolvedRegistered && resolvedPlayerExists) {
+    return {
+      mode: "login",
+      playerExists: true,
+    };
   }
-
-  setAuthToken(token);
 
   return {
     mode: "register",
-    playerExists: false,
+    playerExists: resolvedPlayerExists,
   };
 }

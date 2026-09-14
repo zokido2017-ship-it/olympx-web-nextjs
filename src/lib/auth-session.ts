@@ -1,3 +1,4 @@
+import { isPhoneVerified, clearVerifiedPhoneSession } from "@/lib/auth-verified-phone";
 import {
   safeLocalGetItem,
   safeLocalRemoveItem,
@@ -64,7 +65,7 @@ export function clearRegisteredUser(): void {
 }
 
 export function isAuthenticated(): boolean {
-  return Boolean(getAuthToken());
+  return Boolean(getAuthToken()) || isPhoneVerified();
 }
 
 export function markAuthenticated(): void {
@@ -74,6 +75,7 @@ export function markAuthenticated(): void {
 export function clearAuthenticated(): void {
   clearAuthToken();
   clearRegisteredUser();
+  clearVerifiedPhoneSession();
   safeLocalRemoveItem(AUTH_SESSION_STORAGE_KEY);
 }
 

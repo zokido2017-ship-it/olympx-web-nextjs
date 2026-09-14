@@ -90,7 +90,7 @@ export function FitnessInformationSection({
           )}
         >
           <div className="space-y-1.5">
-            <Label htmlFor="height">Height</Label>
+            <Label htmlFor="height">Height (optional)</Label>
             <Input
               id="height"
               value={height}
@@ -99,7 +99,7 @@ export function FitnessInformationSection({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="weight">Weight</Label>
+            <Label htmlFor="weight">Weight (optional)</Label>
             <Input
               id="weight"
               value={weight}
@@ -110,7 +110,7 @@ export function FitnessInformationSection({
         </div>
 
         <div>
-          <p className="text-base font-bold text-[#0B1F3A]">Fitness Sync</p>
+          <p className="text-base font-bold text-[#0B1F3A]">Fitness Sync (optional)</p>
           <p className="mt-1 text-sm leading-relaxed text-[#64748B]">
             Connect your fitness platforms to sync activity and performance data.
           </p>
