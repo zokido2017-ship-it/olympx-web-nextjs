@@ -40,7 +40,7 @@ export function CreateOrganizationView() {
   const onSubmit = () => toast.success("Registration submitted");
 
   return (
-    <div className="w-full bg-sportxo-surface pb-10">
+    <div className="w-full pb-10">
       <header className="bg-sportxo-blue px-4 py-8 md:px-8 md:py-10">
         <div className="flex flex-wrap items-center gap-3">
           <SportxoLogo variant="light" />

@@ -19,17 +19,20 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
+    <div className="flex min-h-screen bg-sportxo-page">
       <div className="hidden md:flex">
         <DashboardSidebar className="fixed inset-y-0 left-0 z-30" />
       </div>
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
+        <SheetContent
+          side="left"
+          className="w-[min(100%,16rem)] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground [&>button]:text-sidebar-foreground"
+        >
           <SheetTitle className="sr-only">Dashboard navigation</SheetTitle>
           <DashboardSidebar
             onNavigate={() => setMobileNavOpen(false)}
-            className="w-full border-0"
+            className="h-full w-full border-0"
           />
         </SheetContent>
       </Sheet>
@@ -39,7 +42,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
           pathname={pathname}
           onOpenMobileNav={() => setMobileNavOpen(true)}
         />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 bg-sportxo-page p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

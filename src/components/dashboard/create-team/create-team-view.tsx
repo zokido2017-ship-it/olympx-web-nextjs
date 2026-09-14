@@ -46,7 +46,7 @@ export function CreateTeamView() {
   const onCreateTeam = () => toast.success("Team created");
 
   return (
-    <div className="w-full bg-sportxo-surface px-4 pb-10 pt-6 md:px-6 md:pt-8">
+    <div className="w-full px-4 pb-10 pt-2 md:px-2 md:pt-0">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-sportxo-navy md:text-3xl">
