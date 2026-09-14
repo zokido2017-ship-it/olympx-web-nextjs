@@ -353,10 +353,13 @@ export function PlayerProfileWizard({
   };
 
   const onComplete = async () => {
-    const validationError = validateStep(3);
-    if (validationError) {
-      toast.error(validationError);
-      return;
+    for (const currentStep of [1, 2] as const) {
+      const validationError = validateStep(currentStep);
+      if (validationError) {
+        toast.error(validationError);
+        goToStep(currentStep);
+        return;
+      }
     }
 
     setIsCompleting(true);
@@ -369,6 +372,10 @@ export function PlayerProfileWizard({
       const sportIds = selectedSportIds
         .map((id) => Number.parseInt(id, 10))
         .filter((id) => Number.isFinite(id));
+
+      if (sportIds.length === 0) {
+        throw new Error("Select at least one sport before completing registration.");
+      }
 
       const response = await registerPlayerProfile({
         phone_code: verifiedPhone.phone_code,

@@ -47,6 +47,7 @@ function buildVerifiedPhoneSession(
   };
 }
 
+/** Verifies OTP via `POST /auth/validate-otp` only — player register happens later in the wizard. */
 export async function completePhoneOtpVerification({
   otpPayload,
   registered,

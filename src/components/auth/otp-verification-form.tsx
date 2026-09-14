@@ -13,7 +13,11 @@ import { toast } from "sonner";
 import { LOGIN_PHONE_STORAGE_KEY, type StoredLoginPhone } from "@/types/auth";
 import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
 import { getApiErrorMessage } from "@/lib/api/errors";
-import { createDefaultOtpDigits, DEFAULT_OTP, isDevOtpEnabled } from "@/lib/auth-otp";
+import {
+  createDefaultOtpDigits,
+  DEFAULT_OTP,
+  showDefaultOtpHint,
+} from "@/lib/auth-otp";
 import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
 import { navigateAfterPhoneOtpAuth } from "@/lib/auth-navigation";
 import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
@@ -214,9 +218,10 @@ export function OtpVerificationForm() {
             disabled={isSubmitting}
           />
           <FieldError message={error ?? undefined} />
-          {isDevOtpEnabled() ? (
+          {showDefaultOtpHint() ? (
             <p className="text-center text-xs text-sportxo-text-muted">
-              Dev OTP: <span className="font-semibold text-sportxo-navy">{DEFAULT_OTP}</span>
+              Default OTP:{" "}
+              <span className="font-semibold text-sportxo-navy">{DEFAULT_OTP}</span>
             </p>
           ) : null}
         </div>

@@ -1,8 +1,6 @@
 import { apiClient, apiRootClient } from "@/lib/api/client";
 import type {
   ApiUser,
-  RegisterRequest,
-  RegisterResponse,
   SendOtpRequest,
   SendOtpResponse,
   ValidateOtpRequest,
@@ -24,16 +22,6 @@ export async function validateOtp(
 ): Promise<ValidateOtpResponse> {
   const { data } = await apiClient.post<ValidateOtpResponse>(
     "/auth/validate-otp",
-    payload,
-  );
-  return data;
-}
-
-export async function registerUser(
-  payload: RegisterRequest,
-): Promise<RegisterResponse> {
-  const { data } = await apiClient.post<RegisterResponse>(
-    "/auth/register",
     payload,
   );
   return data;

@@ -15,7 +15,11 @@ import {
   type SignupSession,
 } from "@/types/auth";
 import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
-import { createDefaultOtpDigits, DEFAULT_OTP, isDevOtpEnabled } from "@/lib/auth-otp";
+import {
+  createDefaultOtpDigits,
+  DEFAULT_OTP,
+  showDefaultOtpHint,
+} from "@/lib/auth-otp";
 import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
 import { DUPLICATE_MOBILE_MESSAGE, getApiErrorMessage } from "@/lib/api/errors";
 import { navigateAfterPhoneOtpAuth } from "@/lib/auth-navigation";
@@ -210,9 +214,10 @@ export function SignupOtpForm() {
             disabled={isSubmitting}
           />
           <FieldError message={error ?? undefined} />
-          {isDevOtpEnabled() ? (
+          {showDefaultOtpHint() ? (
             <p className="text-center text-xs text-sportxo-text-muted">
-              Dev OTP: <span className="font-semibold text-sportxo-navy">{DEFAULT_OTP}</span>
+              Default OTP:{" "}
+              <span className="font-semibold text-sportxo-navy">{DEFAULT_OTP}</span>
             </p>
           ) : null}
         </div>
