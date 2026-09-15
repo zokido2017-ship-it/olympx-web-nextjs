@@ -151,3 +151,34 @@ export type RegisterPlayerResponse = {
 
 /** @deprecated Legacy JSON register response. */
 export type RegisterResponse = ApiUser;
+
+export type ApiTeam = {
+  id: number;
+  name: string;
+  short_name?: string | null;
+  description?: string | null;
+  sport_id?: number | null;
+  sport?: Pick<ApiSport, "id" | "name" | "slug"> | null;
+  logo_path?: string | null;
+  logo_url?: string | null;
+  founded_year?: number | null;
+  is_active?: boolean | null;
+  members_count?: number | null;
+  players_count?: number | null;
+  created_at?: string | null;
+};
+
+export type CreateTeamRequest = {
+  player_id: number[];
+  name: string;
+  sport_id?: number;
+  description?: string;
+  founded_year?: number;
+  metadata?: unknown[] | null;
+};
+
+export type CreateTeamResponse = {
+  message?: string;
+  data?: ApiTeam;
+  team?: ApiTeam;
+} & Partial<ApiTeam>;

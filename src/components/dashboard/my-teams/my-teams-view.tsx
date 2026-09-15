@@ -4,8 +4,25 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Plus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/shadcn-button";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { getMyTeams } from "@/lib/teams-storage";
+import {
+  fetchTeams,
+  getTeamSportLabel,
+  resolveTeamLogoUrl,
+} from "@/services/teams-api.service";
+import type { ApiTeam } from "@/types/api";
 import type { StoredTeam } from "@/types/team";
+
+type TeamRow = {
+  id: string;
+  name: string;
+  sport: string;
+  membersCount: number;
+  status: "draft" | "created";
+  createdAt: string;
+  logoUrl: string | null;
+};
 
 function formatDate(value: string): string {
   try {
@@ -19,13 +36,77 @@ function formatDate(value: string): string {
   }
 }
 
+function mapApiTeam(team: ApiTeam): TeamRow {
+  return {
+    id: String(team.id),
+    name: team.name,
+    sport: getTeamSportLabel(team),
+    membersCount: team.members_count ?? team.players_count ?? 0,
+    status: "created",
+    createdAt: team.created_at ?? new Date().toISOString(),
+    logoUrl: resolveTeamLogoUrl(team),
+  };
+}
+
+function mapStoredTeam(team: StoredTeam): TeamRow {
+  return {
+    id: team.id,
+    name: team.name,
+    sport: team.sport,
+    membersCount: team.members.length,
+    status: team.status,
+    createdAt: team.createdAt,
+    logoUrl: team.logoPreviewUrl ?? null,
+  };
+}
+
 export function MyTeamsView() {
-  const [teams, setTeams] = useState<StoredTeam[]>([]);
+  const [teams, setTeams] = useState<TeamRow[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-    setTeams(getMyTeams());
+    let cancelled = false;
+
+    async function loadTeams() {
+      setLoadError(null);
+
+      try {
+        const apiTeams = await fetchTeams();
+        const localDrafts = getMyTeams().filter((team) => team.status === "draft");
+        const apiIds = new Set(apiTeams.map((team) => String(team.id)));
+
+        const rows = [
+          ...localDrafts
+            .filter((team) => !team.apiId || !apiIds.has(String(team.apiId)))
+            .map(mapStoredTeam),
+          ...apiTeams.map(mapApiTeam),
+        ].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+
+        if (!cancelled) {
+          setTeams(rows);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setTeams(getMyTeams().map(mapStoredTeam));
+          setLoadError(
+            getApiErrorMessage(error, "Could not load teams from the API."),
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setMounted(true);
+        }
+      }
+    }
+
+    void loadTeams();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!mounted) {
@@ -46,6 +127,9 @@ export function MyTeamsView() {
           <p className="mt-1 text-sm text-sportxo-text-muted">
             View and manage the teams you have created.
           </p>
+          {loadError ? (
+            <p className="mt-2 text-sm text-amber-700">{loadError}</p>
+          ) : null}
         </div>
         <Button
           asChild
@@ -88,9 +172,9 @@ export function MyTeamsView() {
                   <tr key={team.id} className="hover:bg-[#F8FAFC]/80">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        {team.logoPreviewUrl ? (
+                        {team.logoUrl ? (
                           <img
-                            src={team.logoPreviewUrl}
+                            src={team.logoUrl}
                             alt=""
                             className="size-10 rounded-lg border border-sportxo-border object-cover"
                           />
@@ -106,7 +190,7 @@ export function MyTeamsView() {
                     </td>
                     <td className="px-5 py-4 text-sportxo-text-muted">{team.sport}</td>
                     <td className="px-5 py-4 text-sportxo-text-muted">
-                      {team.members.length}
+                      {team.membersCount}
                     </td>
                     <td className="px-5 py-4">
                       <span
@@ -123,17 +207,28 @@ export function MyTeamsView() {
                       {formatDate(team.createdAt)}
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="sm"
-                        className="font-semibold"
-                      >
-                        <Link href={`/dashboard/my-teams/${team.id}/members`}>
-                          <UserPlus className="size-4" aria-hidden />
-                          Add Team Members
-                        </Link>
-                      </Button>
+                      {team.status === "created" ? (
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="font-semibold"
+                        >
+                          <Link href={`/dashboard/my-teams/${team.id}/members`}>
+                            <UserPlus className="size-4" aria-hidden />
+                            Add Team Members
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="font-semibold"
+                        >
+                          <Link href="/dashboard/my-teams/create">Continue Draft</Link>
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))

@@ -5,12 +5,26 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AddTeamMembersPanel } from "@/components/dashboard/create-team/add-team-members-panel";
-import { getTeamById, saveTeam } from "@/lib/teams-storage";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { getMyTeams, getTeamById, saveTeam } from "@/lib/teams-storage";
+import {
+  fetchTeamById,
+  getTeamSportLabel,
+  resolveTeamLogoUrl,
+} from "@/services/teams-api.service";
 import type { StoredTeam, TeamMemberRecord } from "@/types/team";
 
 type AddTeamMembersViewProps = {
   teamId: string;
 };
+
+function findLocalTeam(teamId: string): StoredTeam | null {
+  return (
+    getTeamById(teamId) ??
+    getMyTeams().find((entry) => String(entry.apiId) === teamId) ??
+    null
+  );
+}
 
 export function AddTeamMembersView({ teamId }: AddTeamMembersViewProps) {
   const router = useRouter();
@@ -19,15 +33,60 @@ export function AddTeamMembersView({ teamId }: AddTeamMembersViewProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const loaded = getTeamById(teamId);
-    if (!loaded) {
-      router.replace("/dashboard/my-teams");
-      return;
+    let cancelled = false;
+
+    async function loadTeam() {
+      const localTeam = findLocalTeam(teamId);
+      if (localTeam) {
+        if (!cancelled) {
+          setTeam(localTeam);
+          setMembers(localTeam.members);
+          setMounted(true);
+        }
+        return;
+      }
+
+      const numericId = Number.parseInt(teamId, 10);
+      if (!Number.isFinite(numericId)) {
+        router.replace("/dashboard/my-teams");
+        return;
+      }
+
+      try {
+        const apiTeam = await fetchTeamById(numericId);
+        const mapped: StoredTeam = {
+          id: String(apiTeam.id),
+          apiId: apiTeam.id,
+          name: apiTeam.name,
+          sport: getTeamSportLabel(apiTeam),
+          sportId: apiTeam.sport_id ?? undefined,
+          foundedYear: apiTeam.founded_year ?? undefined,
+          description: apiTeam.description ?? undefined,
+          logoPreviewUrl: resolveTeamLogoUrl(apiTeam),
+          status: "created",
+          createdAt: apiTeam.created_at ?? new Date().toISOString(),
+          members: [],
+        };
+
+        if (!cancelled) {
+          saveTeam(mapped);
+          setTeam(mapped);
+          setMembers(mapped.members);
+          setMounted(true);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getApiErrorMessage(error, "Could not load team."));
+          router.replace("/dashboard/my-teams");
+        }
+      }
     }
 
-    setTeam(loaded);
-    setMembers(loaded.members);
-    setMounted(true);
+    void loadTeam();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router, teamId]);
 
   if (!mounted || !team) {

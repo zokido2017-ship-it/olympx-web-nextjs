@@ -1,16 +1,20 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CloudUpload } from "lucide-react";
 import { CreateTeamSection } from "@/components/dashboard/create-team/create-team-section";
-import { TEAM_SPORT_OPTIONS } from "@/constants/create-team";
+import { SPORTS_CATALOG, type SportOption } from "@/constants/sports-catalog";
+import { fetchSportsFromApi } from "@/services/sports-api.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 export type TeamInformationFormValues = {
   name: string;
-  sport: string;
+  sportId: string;
   description: string;
+  foundedYear: string;
   logoPreviewUrl?: string | null;
 };
 
@@ -24,6 +28,36 @@ export function TeamInformationForm({
   onChange,
 }: TeamInformationFormProps) {
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [sports, setSports] = useState<SportOption[]>(SPORTS_CATALOG);
+  const [sportsLoading, setSportsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSports() {
+      setSportsLoading(true);
+      try {
+        const result = await fetchSportsFromApi();
+        if (!cancelled) {
+          setSports(result.sports);
+        }
+      } catch {
+        if (!cancelled) {
+          setSports(SPORTS_CATALOG);
+        }
+      } finally {
+        if (!cancelled) {
+          setSportsLoading(false);
+        }
+      }
+    }
+
+    void loadSports();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const update = (patch: Partial<TeamInformationFormValues>) => {
     onChange({ ...values, ...patch });
@@ -34,7 +68,9 @@ export function TeamInformationForm({
 
     const reader = new FileReader();
     reader.onload = () => {
-      update({ logoPreviewUrl: typeof reader.result === "string" ? reader.result : null });
+      update({
+        logoPreviewUrl: typeof reader.result === "string" ? reader.result : null,
+      });
     };
     reader.readAsDataURL(file);
   };
@@ -55,17 +91,32 @@ export function TeamInformationForm({
           <Label htmlFor="teamSport">Team Sport *</Label>
           <select
             id="teamSport"
-            value={values.sport}
-            onChange={(event) => update({ sport: event.target.value })}
-            className="h-11 w-full rounded-lg border border-sportxo-border bg-sportxo-white px-3.5 text-sm text-sportxo-navy shadow-sportxo-soft outline-none focus:border-sportxo-blue focus:ring-2 focus:ring-sportxo-blue/20"
+            value={values.sportId}
+            onChange={(event) => update({ sportId: event.target.value })}
+            disabled={sportsLoading}
+            className="h-11 w-full rounded-lg border border-sportxo-border bg-sportxo-white px-3.5 text-sm text-sportxo-navy shadow-sportxo-soft outline-none focus:border-sportxo-blue focus:ring-2 focus:ring-sportxo-blue/20 disabled:opacity-60"
           >
-            <option value="">Select Sport</option>
-            {TEAM_SPORT_OPTIONS.map((sport) => (
-              <option key={sport} value={sport}>
-                {sport}
+            <option value="">
+              {sportsLoading ? "Loading sports…" : "Select Sport"}
+            </option>
+            {sports.map((sport) => (
+              <option key={sport.id} value={sport.id}>
+                {sport.name}
               </option>
             ))}
           </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="foundedYear">Founded Year *</Label>
+          <Input
+            id="foundedYear"
+            type="number"
+            min={1850}
+            max={2100}
+            value={values.foundedYear}
+            onChange={(event) => update({ foundedYear: event.target.value })}
+            placeholder={String(CURRENT_YEAR)}
+          />
         </div>
         <div className="space-y-1.5 lg:col-span-2">
           <Label htmlFor="description">Description</Label>
@@ -107,8 +158,23 @@ export function TeamInformationForm({
             className="hidden"
             onChange={(event) => onLogoSelected(event.target.files?.[0] ?? null)}
           />
+          <p className="text-xs text-sportxo-text-muted">
+            Logo upload to the server will be available in a future update.
+          </p>
         </div>
       </div>
     </CreateTeamSection>
   );
+}
+
+export function getDefaultFoundedYear(): string {
+  return String(CURRENT_YEAR);
+}
+
+export function parseFoundedYear(value: string): number | null {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1850 || parsed > 2100) {
+    return null;
+  }
+  return parsed;
 }

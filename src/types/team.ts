@@ -14,8 +14,11 @@ export type TeamMemberRecord = {
 
 export type StoredTeam = {
   id: string;
+  apiId?: number;
   name: string;
   sport: string;
+  sportId?: number;
+  foundedYear?: number;
   description?: string;
   logoPreviewUrl?: string | null;
   status: TeamStatus;
@@ -25,7 +28,8 @@ export type StoredTeam = {
 
 export type TeamDraft = {
   name: string;
-  sport: string;
+  sportId: string;
   description: string;
+  foundedYear: string;
   logoPreviewUrl?: string | null;
 };
