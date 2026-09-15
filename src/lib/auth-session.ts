@@ -7,6 +7,7 @@ import {
 
 export const AUTH_SESSION_STORAGE_KEY = "sportxo_auth_session";
 export const AUTH_TOKEN_STORAGE_KEY = "sportxo_auth_token";
+export const AUTH_TOKEN_EXPIRES_AT_STORAGE_KEY = "sportxo_auth_token_expires_at";
 export const REGISTERED_USER_STORAGE_KEY = "sportxo_registered_user";
 export const PLAYER_PROFILE_COMPLETE_STORAGE_KEY =
   "sportxo_player_profile_complete";
@@ -32,16 +33,44 @@ function readFlag(key: string): boolean {
 
 export function getAuthToken(): string | null {
   const token = safeLocalGetItem(AUTH_TOKEN_STORAGE_KEY);
-  return token?.trim() || null;
+  if (!token?.trim()) {
+    return null;
+  }
+
+  const expiresAt = safeLocalGetItem(AUTH_TOKEN_EXPIRES_AT_STORAGE_KEY);
+  if (expiresAt) {
+    const expiryMs = Date.parse(expiresAt);
+    if (Number.isFinite(expiryMs) && expiryMs <= Date.now()) {
+      clearAuthToken();
+      return null;
+    }
+  }
+
+  return token.trim();
 }
 
-export function setAuthToken(token: string): void {
+export function getAuthTokenExpiresAt(): string | null {
+  const expiresAt = safeLocalGetItem(AUTH_TOKEN_EXPIRES_AT_STORAGE_KEY);
+  return expiresAt?.trim() || null;
+}
+
+export function setAuthToken(token: string, expiresAt?: string): void {
   safeLocalSetItem(AUTH_TOKEN_STORAGE_KEY, token);
   safeLocalSetItem(AUTH_SESSION_STORAGE_KEY, "1");
+  if (expiresAt?.trim()) {
+    safeLocalSetItem(AUTH_TOKEN_EXPIRES_AT_STORAGE_KEY, expiresAt.trim());
+  } else {
+    safeLocalRemoveItem(AUTH_TOKEN_EXPIRES_AT_STORAGE_KEY);
+  }
 }
 
 export function clearAuthToken(): void {
   safeLocalRemoveItem(AUTH_TOKEN_STORAGE_KEY);
+  safeLocalRemoveItem(AUTH_TOKEN_EXPIRES_AT_STORAGE_KEY);
+}
+
+export function hasAuthToken(): boolean {
+  return Boolean(getAuthToken());
 }
 
 export function setRegisteredUser(user: StoredRegisteredUser): void {
@@ -64,8 +93,19 @@ export function clearRegisteredUser(): void {
   safeLocalRemoveItem(REGISTERED_USER_STORAGE_KEY);
 }
 
+/** True when a bearer token is stored (required for protected API routes). */
 export function isAuthenticated(): boolean {
-  return Boolean(getAuthToken()) || isPhoneVerified();
+  return hasAuthToken();
+}
+
+/** True during OTP-verified registration before a bearer token may be issued. */
+export function hasVerifiedPhoneAccess(): boolean {
+  return isPhoneVerified();
+}
+
+/** Dashboard and authenticated API access require a bearer token. */
+export function canAccessProtectedApis(): boolean {
+  return hasAuthToken();
 }
 
 export function markAuthenticated(): void {

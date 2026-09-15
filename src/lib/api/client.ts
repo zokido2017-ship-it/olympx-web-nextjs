@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance } from "axios";
 
 import { getApiBaseUrl, getApiOrigin } from "@/lib/api/config";
-import { getAuthToken } from "@/lib/auth-session";
+import { clearAuthenticated, getAuthToken } from "@/lib/auth-session";
 
 function createApiClient(baseURL: string): AxiosInstance {
   const client = axios.create({
@@ -19,6 +19,20 @@ function createApiClient(baseURL: string): AxiosInstance {
     }
     return config;
   });
+
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      const status = error.response?.status;
+      if (status === 401 && getAuthToken()) {
+        clearAuthenticated();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("sportxo:auth-expired"));
+        }
+      }
+      return Promise.reject(error);
+    },
+  );
 
   return client;
 }

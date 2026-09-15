@@ -15,10 +15,12 @@ import { SportsInformationSection } from "@/components/player-setup/sports-infor
 import { SPORTS_CATALOG, type SportOption } from "@/constants/sports-catalog";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getVerifiedPhoneSession } from "@/lib/auth-verified-phone";
+import { DEFAULT_OTP } from "@/lib/auth-otp";
 import {
   DASHBOARD_PATH,
   getStoredPlayerId,
-  isAuthenticated,
+  hasAuthToken,
+  hasVerifiedPhoneAccess,
   markAuthenticated,
   markPlayerProfileComplete,
   setStoredPlayerId,
@@ -43,6 +45,11 @@ import {
   applyPlayerToWizardState,
   loadAuthenticatedUser,
 } from "@/services/player-profile-api.service";
+import {
+  hydrateAuthenticatedSession,
+  persistAuthFromResponse,
+  validateOtp,
+} from "@/services/auth-api.service";
 import { registerPlayerProfile } from "@/services/player-register.service";
 import { fetchSportsFromApi } from "@/services/sports-api.service";
 import type { SignupSession } from "@/types/auth";
@@ -175,7 +182,7 @@ export function PlayerProfileWizard({
         >);
       }
 
-      if (!isAuthenticated()) {
+      if (!hasVerifiedPhoneAccess()) {
         setIsBootstrapping(false);
         return;
       }
@@ -394,6 +401,20 @@ export function PlayerProfileWizard({
 
       setPlayerId(response.player.id);
       setStoredPlayerId(response.player.id);
+
+      if (!hasAuthToken()) {
+        const tokenResponse = await validateOtp({
+          phone_code: verifiedPhone.phone_code,
+          mobile_number: verifiedPhone.mobile_number,
+          otp: DEFAULT_OTP,
+        });
+        persistAuthFromResponse(tokenResponse);
+      }
+
+      if (hasAuthToken()) {
+        await hydrateAuthenticatedSession();
+      }
+
       markAuthenticated();
       clearPlayerWizardDraft();
       safeSessionRemoveItem(SIGNUP_SESSION_STORAGE_KEY);

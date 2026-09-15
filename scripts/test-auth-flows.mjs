@@ -11,6 +11,9 @@
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://backend.sportxo.in/api/v1"
 ).replace(/\/$/, "");
+const API_ORIGIN = (
+  process.env.NEXT_PUBLIC_API_ORIGIN || new URL(API_BASE).origin
+).replace(/\/$/, "");
 
 const TEST_OTP = process.env.TEST_OTP || "0000";
 const phoneSuffix = String(Date.now()).slice(-8);
@@ -21,8 +24,11 @@ function log(status, name, detail) {
   console.log(`[${status}] ${name}${extra}`);
 }
 
-async function request(path, { method = "GET", body, formData } = {}) {
-  const headers = { Accept: "application/json" };
+async function request(
+  path,
+  { method = "GET", body, formData, headers: extraHeaders = {}, baseUrl = API_BASE } = {},
+) {
+  const headers = { Accept: "application/json", ...extraHeaders };
   let payload = body;
 
   if (formData) {
@@ -32,7 +38,7 @@ async function request(path, { method = "GET", body, formData } = {}) {
     payload = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers,
     body: payload,
@@ -111,6 +117,15 @@ async function main() {
     signupValidate.data?.registered === false,
     signupValidate.data,
   );
+  assert(
+    "signup-validate-otp-token",
+    Boolean(
+      signupValidate.data?.token ||
+        signupValidate.data?.access_token ||
+        signupValidate.data?.auth_code,
+    ),
+    signupValidate.data,
+  );
 
   const register = await registerPlayer(newPhone);
   assert(
@@ -137,6 +152,27 @@ async function main() {
       loginValidate.data?.player_exists === true,
     loginValidate.data,
   );
+  assert(
+    "login-validate-otp-token",
+    Boolean(
+      loginValidate.data?.token ||
+        loginValidate.data?.access_token ||
+        loginValidate.data?.auth_code,
+    ),
+    loginValidate.data,
+  );
+
+  const authToken =
+    loginValidate.data?.token ||
+    loginValidate.data?.access_token ||
+    loginValidate.data?.auth_code;
+  if (authToken) {
+    const me = await request("/api/me", {
+      baseUrl: API_ORIGIN,
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    assert("authenticated-me", me.ok, me.data);
+  }
 
   const duplicateRegister = await registerPlayer(newPhone);
   assert(

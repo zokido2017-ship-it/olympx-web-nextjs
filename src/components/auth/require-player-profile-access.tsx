@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { BYPASS_PLAYER_PROFILE_ROUTE_GUARD } from "@/lib/auth-navigation";
 import {
   DASHBOARD_PATH,
-  isAuthenticated,
+  hasVerifiedPhoneAccess,
   isPlayerProfileComplete,
 } from "@/lib/auth-session";
 
@@ -37,7 +37,7 @@ function ProtectedPlayerProfileAccess({
       return;
     }
 
-    if (!isAuthenticated()) {
+    if (!hasVerifiedPhoneAccess()) {
       router.replace("/login");
       return;
     }

@@ -100,7 +100,12 @@ export type ValidateOtpResponse = {
   player_exists?: boolean;
   token?: string;
   access_token?: string;
+  auth_code?: string;
+  auth_token?: string;
+  token_type?: string;
+  expires_at?: string;
   user?: ApiUser;
+  player?: ApiPlayer;
 };
 
 export type RegisteredPlayerSport = {

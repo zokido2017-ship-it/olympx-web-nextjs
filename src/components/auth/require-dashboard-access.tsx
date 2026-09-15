@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  isAuthenticated,
+  canAccessProtectedApis,
   isPlayerProfileComplete,
   PLAYER_PROFILE_PATH,
 } from "@/lib/auth-session";
@@ -34,17 +34,31 @@ export function RequireDashboardAccess({ children }: RequireDashboardAccessProps
       return;
     }
 
-    if (!isAuthenticated()) {
+    const onAuthExpired = () => {
       router.replace("/login");
-      return;
+    };
+
+    window.addEventListener("sportxo:auth-expired", onAuthExpired);
+
+    if (!canAccessProtectedApis()) {
+      router.replace("/login");
+      return () => {
+        window.removeEventListener("sportxo:auth-expired", onAuthExpired);
+      };
     }
 
     if (!isPlayerProfileComplete()) {
       router.replace(PLAYER_PROFILE_PATH);
-      return;
+      return () => {
+        window.removeEventListener("sportxo:auth-expired", onAuthExpired);
+      };
     }
 
     setAllowed(true);
+
+    return () => {
+      window.removeEventListener("sportxo:auth-expired", onAuthExpired);
+    };
   }, [mounted, router]);
 
   if (!mounted || !allowed) {

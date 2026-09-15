@@ -7,9 +7,13 @@ import {
   setVerifiedPhoneSession,
   type VerifiedPhoneSession,
 } from "@/lib/auth-verified-phone";
-import { markAuthenticated, setAuthToken, setRegisteredUser } from "@/lib/auth-session";
+import { markAuthenticated } from "@/lib/auth-session";
 import type { SignupSession } from "@/types/auth";
-import { extractAuthToken, validateOtp } from "@/services/auth-api.service";
+import {
+  hydrateAuthenticatedSession,
+  persistAuthFromResponse,
+  validateOtp,
+} from "@/services/auth-api.service";
 import type { ValidateOtpRequest } from "@/types/api";
 
 export class DuplicateMobileRegistrationError extends Error {
@@ -84,13 +88,9 @@ export async function completePhoneOtpVerification({
     throw new DuplicateMobileRegistrationError();
   }
 
-  const authToken = extractAuthToken(otpResponse);
+  const authToken = persistAuthFromResponse(otpResponse);
   if (authToken) {
-    setAuthToken(authToken);
-  }
-
-  if (otpResponse.user && typeof otpResponse.user.id === "number") {
-    setRegisteredUser(otpResponse.user);
+    await hydrateAuthenticatedSession();
   }
 
   setVerifiedPhoneSession(
