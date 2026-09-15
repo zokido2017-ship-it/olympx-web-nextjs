@@ -1,10 +1,5 @@
-import type { Metadata } from "next";
-import { CreateTeamPanel } from "@/components/dashboard/create-team-panel";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Create Team",
-};
-
-export default function CreateTeamPage() {
-  return <CreateTeamPanel />;
+export default function LegacyCreateTeamPage() {
+  redirect("/dashboard/my-teams");
 }
