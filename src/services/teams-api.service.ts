@@ -61,8 +61,16 @@ export function getTeamSportLabel(team: ApiTeam): string {
   return team.sport?.name?.trim() || "—";
 }
 
+/** @deprecated Use `fetchMyTeams(playerId)` — requires the authenticated player's id. */
 export async function fetchTeams(): Promise<ApiTeam[]> {
   const { data } = await apiClient.get<unknown>("/teams");
+  return normalizeTeamsPayload(data);
+}
+
+export async function fetchMyTeams(playerId: number): Promise<ApiTeam[]> {
+  const { data } = await apiClient.get<unknown>("/teams/myteams", {
+    params: { player_id: playerId },
+  });
   return normalizeTeamsPayload(data);
 }
 

@@ -5,9 +5,11 @@ import { useEffect, useState } from "react";
 import { Plus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/shadcn-button";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { getStoredPlayerId } from "@/lib/auth-session";
 import { getMyTeams } from "@/lib/teams-storage";
+import { hydrateAuthenticatedSession } from "@/services/auth-api.service";
 import {
-  fetchTeams,
+  fetchMyTeams,
   getTeamSportLabel,
   resolveTeamLogoUrl,
 } from "@/services/teams-api.service";
@@ -68,11 +70,28 @@ export function MyTeamsView() {
   useEffect(() => {
     let cancelled = false;
 
+    async function resolvePlayerId(): Promise<number | null> {
+      const storedPlayerId = getStoredPlayerId();
+      if (storedPlayerId) {
+        return storedPlayerId;
+      }
+
+      const user = await hydrateAuthenticatedSession();
+      return user?.player?.id ?? getStoredPlayerId();
+    }
+
     async function loadTeams() {
       setLoadError(null);
 
       try {
-        const apiTeams = await fetchTeams();
+        const playerId = await resolvePlayerId();
+        if (!playerId) {
+          throw new Error(
+            "Player profile not found. Complete your profile before viewing teams.",
+          );
+        }
+
+        const apiTeams = await fetchMyTeams(playerId);
         const localDrafts = getMyTeams().filter((team) => team.status === "draft");
         const apiIds = new Set(apiTeams.map((team) => String(team.id)));
 

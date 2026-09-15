@@ -168,6 +168,8 @@ export type ApiTeam = {
   logo_url?: string | null;
   founded_year?: number | null;
   is_active?: boolean | null;
+  is_created_by_player?: boolean | null;
+  player_id?: number[] | null;
   members_count?: number | null;
   players_count?: number | null;
   created_at?: string | null;
