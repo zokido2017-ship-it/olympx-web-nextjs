@@ -6,10 +6,10 @@ import {
   Calendar,
   Globe,
   Mail,
-  UploadCloud,
   UserRound,
   Users,
 } from "lucide-react";
+import { ProfilePhotoCropUpload } from "@/components/player-setup/profile-photo-crop-upload";
 import { SetupSectionCard } from "@/components/player-setup/setup-section-card";
 import { WizardIconField } from "@/components/player-setup/wizard-icon-field";
 import { WizardSelectField } from "@/components/player-setup/wizard-select-field";
@@ -37,78 +37,11 @@ type PersonalInformationSectionProps = {
   onDateOfBirthChange: (value: string) => void;
   onNationalityChange: (value: string) => void;
   onGenderChange: (value: string) => void;
+  photoPreview?: string | null;
+  photoError?: string | null;
+  onPhotoChange?: (file: File | null, previewUrl: string | null) => void;
   wizardMode?: boolean;
 };
-
-function WizardPhotoUpload() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const applyPhotoFile = (file: File) => {
-    setPhotoPreview(URL.createObjectURL(file));
-  };
-
-  const onPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) applyPhotoFile(file);
-  };
-
-  const onDrop = (event: React.DragEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    setIsDragging(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file?.type.startsWith("image/")) applyPhotoFile(file);
-  };
-
-  return (
-    <div className="flex justify-center pb-1">
-      <button
-        type="button"
-        aria-label="Upload profile photo"
-        onClick={() => fileInputRef.current?.click()}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={onDrop}
-        className={cn(
-          "relative flex size-[120px] flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-colors duration-200",
-          isDragging
-            ? "border-sportxo-blue bg-[#EFF6FF]"
-            : "border-[#CBD5E1] bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9] hover:border-sportxo-blue/45 hover:bg-[#F8FAFC]",
-        )}
-      >
-        {photoPreview ? (
-          <Image
-            src={photoPreview}
-            alt="Profile preview"
-            fill
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <>
-            <span className="flex size-10 items-center justify-center rounded-xl bg-white text-sportxo-blue shadow-sm">
-              <UploadCloud className="size-5" aria-hidden />
-            </span>
-            <span className="mt-2 text-xs font-semibold text-sportxo-navy">
-              Photo
-            </span>
-          </>
-        )}
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        className="hidden"
-        onChange={onPhotoChange}
-      />
-    </div>
-  );
-}
 
 export function PersonalInformationSection({
   fullName,
@@ -125,23 +58,30 @@ export function PersonalInformationSection({
   onDateOfBirthChange,
   onNationalityChange,
   onGenderChange,
+  photoPreview = null,
+  photoError = null,
+  onPhotoChange,
   wizardMode = false,
 }: PersonalInformationSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [legacyPhotoPreview, setLegacyPhotoPreview] = useState<string | null>(null);
 
-  const onPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onLegacyPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) setPhotoPreview(URL.createObjectURL(file));
+    if (file) setLegacyPhotoPreview(URL.createObjectURL(file));
   };
 
   if (wizardMode) {
     return (
-      <div className="w-full max-w-none space-y-8 pb-1 pt-1">
-        <WizardPhotoUpload />
+      <div className="w-full min-w-0 max-w-none space-y-5 sm:space-y-6">
+        <ProfilePhotoCropUpload
+          previewUrl={photoPreview}
+          error={photoError}
+          onPhotoChange={(file, previewUrl) => onPhotoChange?.(file, previewUrl)}
+        />
 
-        <div className="flex w-full flex-col space-y-5">
-          <div className="w-full space-y-2">
+        <div className="flex w-full min-w-0 flex-col space-y-4">
+          <div className="w-full min-w-0 space-y-2">
             <Label htmlFor="fullName" className={wizardLabelClass}>
               Full Name
             </Label>
@@ -231,9 +171,9 @@ export function PersonalInformationSection({
           <Label>Upload Profile Photo</Label>
           <div className="mt-2 flex items-center gap-5">
             <div className="relative size-24 overflow-hidden rounded-2xl border border-sportxo-border bg-[#F3F5F9]">
-              {photoPreview ? (
+              {legacyPhotoPreview ? (
                 <Image
-                  src={photoPreview}
+                  src={legacyPhotoPreview}
                   alt="Profile preview"
                   fill
                   className="object-cover"
@@ -253,7 +193,7 @@ export function PersonalInformationSection({
               type="file"
               accept="image/png,image/jpeg,image/webp"
               className="hidden"
-              onChange={onPhotoChange}
+              onChange={onLegacyPhotoChange}
             />
           </div>
         </div>

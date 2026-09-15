@@ -1,5 +1,6 @@
-import { CreateTeamView } from "@/components/dashboard/create-team/create-team-view";
+import { redirect } from "next/navigation";
 
+/** @deprecated Use `/dashboard/my-teams` routes instead. */
 export function CreateTeamPanel() {
-  return <CreateTeamView />;
+  redirect("/dashboard/my-teams");
 }

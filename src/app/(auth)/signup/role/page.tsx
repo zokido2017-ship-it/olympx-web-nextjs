@@ -1,11 +1,7 @@
-import type { Metadata } from "next";
-import { RoleSelectionScreen } from "@/components/auth/role-selection-screen";
+import { redirect } from "next/navigation";
+import { PLAYER_PROFILE_PATH } from "@/lib/auth-session";
 
-export const metadata: Metadata = {
-  title: "Choose your role",
-  description: "Select how you want to use Sportxo.",
-};
-
+/** Legacy route — registration is unified; teams and orgs are created after signup. */
 export default function SignupRolePage() {
-  return <RoleSelectionScreen />;
+  redirect(PLAYER_PROFILE_PATH);
 }

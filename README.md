@@ -1,4 +1,18 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Sportxo web frontend (Next.js) for the OlympX platform.
+
+## Backend API
+
+The app talks to the Sportxo REST API:
+
+- **API (v1):** `https://backend.sportxo.in/api/v1`
+- **Docs:** `https://backend.sportxo.in/docs`
+- **Current user:** `GET https://backend.sportxo.in/api/me` (Sanctum bearer token)
+
+Copy `.env.example` to `.env.local` and adjust `NEXT_PUBLIC_API_BASE_URL` if needed.
+
+```bash
+cp .env.example .env.local
+```
 
 ## Getting Started
 

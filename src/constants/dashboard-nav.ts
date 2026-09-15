@@ -9,8 +9,8 @@ export type DashboardNavItem = {
 
 export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   {
-    title: "Create Team",
-    href: "/dashboard/create-team",
+    title: "My Teams",
+    href: "/dashboard/my-teams",
     icon: UsersRound,
   },
   {
@@ -21,6 +21,16 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
 ];
 
 export function getDashboardPageTitle(pathname: string): string {
+  if (pathname.startsWith("/dashboard/my-teams/create")) {
+    return "Create Team";
+  }
+  if (/^\/dashboard\/my-teams\/[^/]+\/members/.test(pathname)) {
+    return "Add Team Members";
+  }
+  if (pathname.startsWith("/dashboard/my-teams")) {
+    return "My Teams";
+  }
+
   const item = DASHBOARD_NAV_ITEMS.find((nav) => nav.href === pathname);
   return item?.title ?? "Dashboard";
 }

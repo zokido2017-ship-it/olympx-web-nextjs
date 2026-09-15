@@ -7,20 +7,29 @@ import {
   useEffect,
   useRef,
   useState,
-  type ClipboardEvent,
   type FormEvent,
-  type KeyboardEvent,
 } from "react";
 import { toast } from "sonner";
-import { LOGIN_PHONE_STORAGE_KEY } from "@/types/auth";
-import { navigateAfterAuthSuccess } from "@/lib/auth-navigation";
+import { LOGIN_PHONE_STORAGE_KEY, type StoredLoginPhone } from "@/types/auth";
+import { AuthPrimaryButton } from "@/components/auth/auth-primary-button";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import {
+  createDefaultOtpDigits,
+  DEFAULT_OTP,
+  showDefaultOtpHint,
+} from "@/lib/auth-otp";
+import { parseSendOtpFlags } from "@/lib/auth-otp-flags";
+import { navigateAfterPhoneOtpAuth } from "@/lib/auth-navigation";
+import { dialCodeToPhoneCode, normalizeMobileNumber } from "@/lib/phone";
 import {
   safeSessionGetItem,
   safeSessionRemoveItem,
+  safeSessionSetItem,
 } from "@/lib/safe-storage";
+import { sendOtp } from "@/services/auth-api.service";
+import { completePhoneOtpVerification } from "@/services/phone-auth.service";
 import { FieldError } from "@/components/ui/field-error";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/cn";
+import { OtpInputGroup, type OtpInputGroupHandle } from "@/components/ui/otp-input-group";
 
 const OTP_LENGTH = 4;
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -33,13 +42,14 @@ function formatCountdown(totalSeconds: number): string {
 
 export function OtpVerificationForm() {
   const router = useRouter();
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
-  const [digits, setDigits] = useState<string[]>(
-    Array.from({ length: OTP_LENGTH }, () => ""),
+  const otpRef = useRef<OtpInputGroupHandle>(null);
+  const [digits, setDigits] = useState<string[]>(() =>
+    createDefaultOtpDigits(OTP_LENGTH),
   );
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneLabel, setPhoneLabel] = useState<string | null>(null);
+  const [phoneSession, setPhoneSession] = useState<StoredLoginPhone | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_COOLDOWN_SECONDS);
   const [isResending, setIsResending] = useState(false);
 
@@ -50,11 +60,23 @@ export function OtpVerificationForm() {
       return;
     }
     try {
-      const { countryCode, phoneNumber } = JSON.parse(raw) as {
-        countryCode: string;
-        phoneNumber: string;
-      };
-      setPhoneLabel(`${countryCode} ${phoneNumber}`);
+      const parsed = JSON.parse(raw) as StoredLoginPhone;
+      const phone_code =
+        parsed.phone_code ?? dialCodeToPhoneCode(parsed.countryCode);
+      const mobile_number =
+        parsed.mobile_number ?? normalizeMobileNumber(parsed.phoneNumber);
+
+      if (!phone_code || !mobile_number) {
+        router.replace("/login");
+        return;
+      }
+
+      setPhoneSession({
+        ...parsed,
+        phone_code,
+        mobile_number,
+      });
+      setPhoneLabel(`${parsed.countryCode} ${parsed.phoneNumber}`);
     } catch {
       router.replace("/login");
     }
@@ -70,154 +92,150 @@ export function OtpVerificationForm() {
 
   const otpValue = digits.join("");
 
-  const focusIndex = (index: number) => {
-    inputRefs.current[index]?.focus();
-  };
+  const submitOtp = useCallback(
+    async (code: string) => {
+      if (!/^\d{4}$/.test(code) || !phoneSession?.phone_code || !phoneSession.mobile_number || isSubmitting) {
+        return;
+      }
 
-  const updateDigit = (index: number, value: string) => {
-    const next = value.replace(/\D/g, "").slice(-1);
-    setDigits((prev) => {
-      const copy = [...prev];
-      copy[index] = next;
-      return copy;
-    });
-    setError(null);
-    if (next && index < OTP_LENGTH - 1) {
-      focusIndex(index + 1);
-    }
-  };
+      setIsSubmitting(true);
+      setError(null);
+      try {
+        const result = await completePhoneOtpVerification({
+          otpPayload: {
+            phone_code: phoneSession.phone_code,
+            mobile_number: phoneSession.mobile_number,
+            otp: code,
+          },
+          registered: Boolean(phoneSession.registered),
+          playerExists: Boolean(phoneSession.player_exists),
+        });
 
-  const handleKeyDown = (
-    index: number,
-    event: KeyboardEvent<HTMLInputElement>,
-  ) => {
-    if (event.key !== "Backspace") return;
-
-    if (digits[index]) return;
-
-    if (index > 0) {
-      event.preventDefault();
-      setDigits((prev) => {
-        const copy = [...prev];
-        copy[index - 1] = "";
-        return copy;
-      });
-      focusIndex(index - 1);
-    }
-  };
-
-  const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    const pasted = event.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, OTP_LENGTH);
-    if (!pasted) return;
-
-    const next = Array.from({ length: OTP_LENGTH }, (_, i) => pasted[i] ?? "");
-    setDigits(next);
-    setError(null);
-    const focusTarget = Math.min(pasted.length, OTP_LENGTH - 1);
-    focusIndex(focusTarget);
-  };
+        safeSessionRemoveItem(LOGIN_PHONE_STORAGE_KEY);
+        toast.success(
+          result.mode === "login"
+            ? "Signed in successfully"
+            : "Phone verified — complete your profile",
+        );
+        navigateAfterPhoneOtpAuth(router, {
+          playerExists: result.playerExists,
+        });
+      } catch (submitError) {
+        setError(getApiErrorMessage(submitError, "Invalid OTP. Please try again."));
+        otpRef.current?.focus(0);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [isSubmitting, phoneSession, router],
+  );
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!/^\d{4}$/.test(otpValue)) {
       setError("Enter the 4-digit OTP");
-      focusIndex(0);
+      otpRef.current?.focus(0);
       return;
     }
-
-    setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setIsSubmitting(false);
-    safeSessionRemoveItem(LOGIN_PHONE_STORAGE_KEY);
-    toast.success("Verified successfully");
-    navigateAfterAuthSuccess(router);
+    await submitOtp(otpValue);
   };
 
   const onResend = useCallback(async () => {
-    if (secondsLeft > 0 || isResending) return;
+    if (secondsLeft > 0 || isResending || !phoneSession?.phone_code || !phoneSession.mobile_number) {
+      return;
+    }
 
     setIsResending(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setIsResending(false);
-    setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
-    setError(null);
-    setSecondsLeft(RESEND_COOLDOWN_SECONDS);
-    focusIndex(0);
-    toast.success("OTP sent again");
-  }, [isResending, secondsLeft]);
+    try {
+      const sendOtpResponse = await sendOtp({
+        phone_code: phoneSession.phone_code,
+        mobile_number: phoneSession.mobile_number,
+      });
+      const { registered, playerExists } = parseSendOtpFlags(sendOtpResponse);
+
+      safeSessionSetItem(
+        LOGIN_PHONE_STORAGE_KEY,
+        JSON.stringify({
+          ...phoneSession,
+          registered,
+          player_exists: playerExists,
+        }),
+      );
+      setPhoneSession((current) =>
+        current
+          ? { ...current, registered, player_exists: playerExists }
+          : current,
+      );
+
+      setDigits(createDefaultOtpDigits(OTP_LENGTH));
+      setError(null);
+      setSecondsLeft(RESEND_COOLDOWN_SECONDS);
+      otpRef.current?.focus(0);
+      toast.success("OTP sent again");
+    } catch (resendError) {
+      toast.error(
+        getApiErrorMessage(resendError, "Could not resend OTP. Please try again."),
+      );
+    } finally {
+      setIsResending(false);
+    }
+  }, [isResending, phoneSession, secondsLeft]);
 
   if (phoneLabel === null) {
     return (
-      <div className="py-8 text-center text-sm text-[#64748B]">
+      <div className="py-10 text-center text-sm text-sportxo-text-muted">
         Loading…
       </div>
     );
   }
 
   const canResend = secondsLeft <= 0 && !isResending;
+  const isRegistered = Boolean(phoneSession?.registered);
 
   return (
-    <div className="space-y-6">
-      <p className="text-center text-sm leading-relaxed text-[#64748B]">
-        We sent a 4-digit code to{" "}
+    <div className="space-y-4 sm:space-y-5">
+      <p className="text-center text-sm leading-relaxed text-sportxo-text-muted sm:text-[0.9375rem]">
+        Enter the 4-digit code sent to{" "}
         <span className="font-semibold text-sportxo-navy">{phoneLabel}</span>
       </p>
+      <p className="text-center text-xs text-sportxo-text-muted">
+        {isRegistered
+          ? "This number is registered. We will sign you in after verification."
+          : "This number is new. We will create your account after verification."}
+      </p>
 
-      <form onSubmit={onSubmit} className="space-y-6" noValidate>
-        <div className="space-y-3">
-          <Label className="text-[0.8125rem] font-medium text-[#64748B]">
-            Enter OTP
-          </Label>
-          <div
-            className="flex justify-center gap-2.5 sm:gap-3"
-            role="group"
-            aria-label="One-time password digits"
-          >
-            {digits.map((digit, index) => (
-              <input
-                key={index}
-                ref={(el) => {
-                  inputRefs.current[index] = el;
-                }}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete={index === 0 ? "one-time-code" : "off"}
-                maxLength={1}
-                value={digit}
-                aria-label={`Digit ${index + 1} of ${OTP_LENGTH}`}
-                onChange={(event) => updateDigit(index, event.target.value)}
-                onKeyDown={(event) => handleKeyDown(index, event)}
-                onPaste={handlePaste}
-                className={cn(
-                  "size-12 min-w-0 flex-1 max-w-[3.75rem] rounded-2xl border bg-[#F1F5F9] text-center text-lg font-bold text-sportxo-navy outline-none transition-colors sm:size-14 sm:text-xl",
-                  "border-transparent focus:border-sportxo-blue focus:bg-sportxo-white focus:ring-2 focus:ring-sportxo-blue/20",
-                  error &&
-                    "border-red-400 focus:border-red-500 focus:ring-red-500/20",
-                )}
-              />
-            ))}
-          </div>
+      <form onSubmit={onSubmit} className="space-y-4 sm:space-y-5" noValidate>
+        <div className="space-y-4">
+          <OtpInputGroup
+            ref={otpRef}
+            value={digits}
+            onChange={(next) => {
+              setDigits(next);
+              setError(null);
+            }}
+            onComplete={(code) => void submitOtp(code)}
+            error={Boolean(error)}
+            disabled={isSubmitting}
+          />
           <FieldError message={error ?? undefined} />
+          {showDefaultOtpHint() ? (
+            <p className="text-center text-xs text-sportxo-text-muted">
+              Default OTP:{" "}
+              <span className="font-semibold text-sportxo-navy">{DEFAULT_OTP}</span>
+            </p>
+          ) : null}
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={cn(
-            "inline-flex h-12 w-full items-center justify-center rounded-full bg-sportxo-blue text-sm font-bold text-white transition-colors",
-            "hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sportxo-blue/30 disabled:opacity-60",
-          )}
-        >
-          {isSubmitting ? "Verifying…" : "Verify OTP"}
-        </button>
+        <AuthPrimaryButton type="submit" disabled={isSubmitting}>
+          {isSubmitting
+            ? "Verifying…"
+            : isRegistered
+              ? "Verify & Sign In"
+              : "Verify & Create Account"}
+        </AuthPrimaryButton>
       </form>
 
-      <div className="space-y-3 text-center text-sm text-[#64748B]">
+      <div className="space-y-3 text-center text-sm text-sportxo-text-muted">
         <p>
           {canResend ? (
             <>
@@ -232,7 +250,7 @@ export function OtpVerificationForm() {
             </>
           ) : (
             <>
-              Resend OTP in{" "}
+              Resend in{" "}
               <span className="font-semibold tabular-nums text-sportxo-navy">
                 {formatCountdown(secondsLeft)}
               </span>
@@ -245,7 +263,7 @@ export function OtpVerificationForm() {
             href="/login"
             className="font-bold text-sportxo-blue transition-colors hover:text-[#1d4ed8]"
           >
-            Change Phone Number
+            Change phone number
           </Link>
         </p>
       </div>

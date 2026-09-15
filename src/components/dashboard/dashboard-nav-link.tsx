@@ -12,7 +12,8 @@ type DashboardNavLinkProps = {
 
 export function DashboardNavLink({ item, onNavigate }: DashboardNavLinkProps) {
   const pathname = usePathname();
-  const isActive = pathname === item.href;
+  const isActive =
+    pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
 
   return (

@@ -13,10 +13,10 @@ type SportAssetIconProps = {
 export function SportAssetIcon({
   src,
   alt,
-  size = 36,
+  size = 64,
   className,
 }: SportAssetIconProps) {
-  const innerSize = Math.round(size * 0.88);
+  const innerSize = Math.min(size, Math.round(size * 0.9));
 
   return (
     <span
@@ -33,7 +33,8 @@ export function SportAssetIcon({
         height={innerSize}
         unoptimized
         draggable={false}
-        className="pointer-events-none block max-h-full max-w-full object-contain object-center"
+        sizes={`${innerSize}px`}
+        className="pointer-events-none block h-auto w-auto max-h-full max-w-full object-contain object-center"
       />
     </span>
   );

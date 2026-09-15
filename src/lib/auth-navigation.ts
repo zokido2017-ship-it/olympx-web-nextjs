@@ -1,6 +1,7 @@
 import {
   clearPlayerProfileComplete,
   markAuthenticated,
+  markPlayerProfileComplete,
   PLAYER_PROFILE_PATH,
   getPostLoginPath,
 } from "@/lib/auth-session";
@@ -9,19 +10,19 @@ import {
  * Toggle for UI-only auth routing during development.
  * Set to `false` when connecting real login/register APIs.
  */
-export const USE_MOCK_AUTH_NAVIGATION = true;
+export const USE_MOCK_AUTH_NAVIGATION = false;
 
 /**
  * UI dev: open `/player-profile` directly without login or profile checks.
  * Set to `false` to re-enable `RequirePlayerProfileAccess` (with API auth).
  */
-export const BYPASS_PLAYER_PROFILE_ROUTE_GUARD = true;
+export const BYPASS_PLAYER_PROFILE_ROUTE_GUARD = false;
 
 /**
  * UI dev: "Sign up" on login goes straight to `/player-profile` (skip `/signup`).
  * Set to `false` when the register page and APIs are ready.
  */
-export const BYPASS_SIGNUP_REGISTRATION = true;
+export const BYPASS_SIGNUP_REGISTRATION = false;
 
 /** Login footer "Sign up" target — register page or player profile (when bypassing). */
 export function getSignupEntryPath(): string {
@@ -64,9 +65,25 @@ export function navigateAfterAuthSuccess(router: ClientAuthRouter): void {
   router.push(getPostLoginPath());
 }
 
-/** After signup — always start the standalone player profile wizard. */
+/**
+ * After registration completes — every user starts as a player and sets up
+ * their profile. Teams and organisations are created later from the dashboard.
+ */
 export function navigateAfterSignupSuccess(router: ClientAuthRouter): void {
-  markAuthenticated();
   clearPlayerProfileComplete();
   router.push(PLAYER_PROFILE_PATH);
+}
+
+/** Routes after OTP auth based on whether the player profile already exists. */
+export function navigateAfterPhoneOtpAuth(
+  router: ClientAuthRouter,
+  options: { playerExists: boolean },
+): void {
+  if (options.playerExists) {
+    markPlayerProfileComplete();
+    navigateAfterAuthSuccess(router);
+    return;
+  }
+
+  navigateAfterSignupSuccess(router);
 }

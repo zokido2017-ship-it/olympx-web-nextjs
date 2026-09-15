@@ -23,13 +23,14 @@ export function SportSelectChip({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
+      aria-label={`${selected ? "Deselect" : "Select"} ${sport.name}`}
       style={
         !selected
           ? { backgroundColor: chipTheme.unselectedChipBg }
           : undefined
       }
       className={cn(
-        "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
+        "flex min-w-0 flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition-colors sm:px-3 sm:py-4",
         selected
           ? "border-2 border-[#2563EB] bg-sportxo-white text-[#2563EB] shadow-sportxo-soft"
           : "border-sportxo-border text-[#1e293b] hover:border-[#2563EB]/35",
@@ -37,16 +38,22 @@ export function SportSelectChip({
     >
       <span
         className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-md border bg-sportxo-white shadow-[0_1px_2px_rgb(11_31_58/0.04)]",
+          "flex size-14 shrink-0 items-center justify-center rounded-xl border bg-sportxo-white sm:size-16",
           selected ? "border-[#2563EB]/20" : "border-sportxo-border/80",
         )}
         aria-hidden
       >
-        <SportAssetIcon src={sport.iconSrc} alt="" size={32} className="size-8" />
+        <SportAssetIcon
+          src={sport.iconSrc}
+          alt={sport.name}
+          size={56}
+          className="size-14 sm:size-16"
+        />
       </span>
       <span
         className={cn(
-          "text-sm font-semibold leading-snug",
+          "w-full px-1 text-xs font-semibold leading-snug sm:text-sm",
+          "line-clamp-2 break-words",
           selected ? "text-[#2563EB]" : "text-[#1e293b]",
         )}
       >
